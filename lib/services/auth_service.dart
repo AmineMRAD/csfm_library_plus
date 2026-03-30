@@ -39,4 +39,18 @@ class AuthService {
       return null;
     }
   }
+
+  Future<User?> login({required String email, required String password}) async {
+    try {
+      UserCredential credential = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      return credential.user;
+    } catch (e) {
+      debugPrint('Erreur login: ${e.toString()}');
+      return null;
+    }
+  }
 }
