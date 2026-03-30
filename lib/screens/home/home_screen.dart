@@ -1,5 +1,8 @@
+// ignore_for_file: avoid_print
+
 import 'package:flutter/material.dart';
-import '../../firebase_options.dart';
+import '../../services/auth_service.dart';
+import '../../models/user_model.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -17,83 +20,40 @@ class HomeScreen extends StatelessWidget {
           children: [
             const Icon(Icons.check_circle, size: 80, color: Colors.green),
             const SizedBox(height: 20),
+
             const Text(
-              'Connexion réussie !',
+              'Firebase fonctionne correctement',
               style: TextStyle(
-                fontSize: 24,
+                fontSize: 20,
                 fontWeight: FontWeight.bold,
-                color: Colors.green,
               ),
             ),
-            SizedBox(height: 10),
-            Text(
-              'Firebase est correctement configuré',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-              ),
-            ),
+
             const SizedBox(height: 30),
-            Card(
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  children: [
-                    const Text(
-                      'Informations de connexion :',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                    _buildInfoRow(
-                      'Projet ID',
-                      DefaultFirebaseOptions.currentPlatform.projectId,
-                    ),
-                    _buildInfoRow(
-                      'App ID',
-                      DefaultFirebaseOptions.currentPlatform.appId,
-                    ),
-                    _buildInfoRow(
-                      'API Key',
-                      _maskApiKey(
-                        DefaultFirebaseOptions.currentPlatform.apiKey,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+
+            /// 🔥 BOUTON TEST INSCRIPTION
+            ElevatedButton(
+              onPressed: () async {
+                final authService = AuthService();
+
+                var user = await authService.register(
+                  name: "Test User",
+                  email: "test${DateTime.now().millisecondsSinceEpoch}@gmail.com",
+                  password: "123456",
+                  role: UserRole.boardingStudent,
+                );
+
+                if (user != null) {
+                  print("✅ Utilisateur créé !");
+                } else {
+                  print("❌ Erreur lors de l'inscription");
+                }
+              },
+              child: const Text("Tester inscription"),
             ),
           ],
         ),
       ),
     );
-  }
-
-  static Widget _buildInfoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        children: [
-          Text(
-            '$label: ',
-            style: const TextStyle(fontWeight: FontWeight.bold),
-          ),
-          Expanded(
-            child: Text(
-              value,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  static String _maskApiKey(String apiKey) {
-    if (apiKey.length < 8) return apiKey;
-    return '${apiKey.substring(0, 8)}...${apiKey.substring(apiKey.length - 4)}';
   }
 }
