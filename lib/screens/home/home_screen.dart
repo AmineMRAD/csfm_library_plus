@@ -58,6 +58,7 @@ class HomeScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(28),
                       boxShadow: [
                         BoxShadow(
+                          // ignore: deprecated_member_use
                           color: Colors.blue.withOpacity(0.18),
                           blurRadius: 24,
                           offset: const Offset(0, 10),

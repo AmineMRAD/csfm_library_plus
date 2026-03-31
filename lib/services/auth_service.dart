@@ -1,11 +1,13 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../models/user_model.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import '../models/user_model.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  static const String adminEmail = 'admin@csfm.tn';
 
   Future<User?> register({
     required String name,
@@ -14,8 +16,15 @@ class AuthService {
     required UserRole role,
   }) async {
     try {
+      final normalizedEmail = email.trim().toLowerCase();
+
+      final UserRole finalRole =
+          normalizedEmail == adminEmail.toLowerCase()
+              ? UserRole.admin
+              : role;
+
       UserCredential credential = await _auth.createUserWithEmailAndPassword(
-        email: email,
+        email: normalizedEmail,
         password: password,
       );
 
@@ -25,8 +34,8 @@ class AuthService {
         UserModel newUser = UserModel(
           uid: user.uid,
           name: name,
-          email: email,
-          role: role,
+          email: normalizedEmail,
+          role: finalRole,
           createdAt: DateTime.now(),
         );
 
@@ -40,16 +49,35 @@ class AuthService {
     }
   }
 
-  Future<User?> login({required String email, required String password}) async {
+  Future<User?> login({
+    required String email,
+    required String password,
+  }) async {
     try {
       UserCredential credential = await _auth.signInWithEmailAndPassword(
-        email: email,
+        email: email.trim().toLowerCase(),
         password: password,
       );
 
       return credential.user;
     } catch (e) {
       debugPrint('Erreur login: ${e.toString()}');
+      return null;
+    }
+  }
+
+  /// 🔥 NOUVEAU : récupérer données user (role)
+  Future<UserModel?> getUserData(String uid) async {
+    try {
+      DocumentSnapshot doc =
+          await _firestore.collection('users').doc(uid).get();
+
+      if (doc.exists) {
+        return UserModel.fromMap(doc.data() as Map<String, dynamic>);
+      }
+      return null;
+    } catch (e) {
+      debugPrint('Erreur getUserData: $e');
       return null;
     }
   }

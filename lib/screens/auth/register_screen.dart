@@ -16,11 +16,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _confirmPasswordController =
+      TextEditingController();
 
   final AuthService _authService = AuthService();
 
   UserRole _selectedRole = UserRole.boardingStudent;
   bool _isLoading = false;
+  bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
@@ -66,32 +70,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
   }
 
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  }
-
-  String _roleLabel(UserRole role) {
-    switch (role) {
-      case UserRole.admin:
-        return 'Administrateur';
-      case UserRole.boardingStudent:
-        return 'Apprenant logé';
-      case UserRole.externalStudent:
-        return 'Apprenant externe';
-    }
-  }
-
   InputDecoration _inputDecoration({
     required String label,
     required IconData icon,
+    Widget? suffixIcon,
   }) {
     return InputDecoration(
       labelText: label,
       prefixIcon: Icon(icon, color: Colors.blue),
+      suffixIcon: suffixIcon,
       filled: true,
       fillColor: Colors.white,
       contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
@@ -108,6 +95,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
         borderSide: const BorderSide(color: Colors.blue, width: 2),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -129,7 +125,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
-          child: Container(
+          child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 450),
             child: Card(
               elevation: 8,
@@ -211,10 +207,23 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
                       TextFormField(
                         controller: _passwordController,
-                        obscureText: true,
+                        obscureText: _obscurePassword,
                         decoration: _inputDecoration(
                           label: 'Mot de passe',
                           icon: Icons.lock_outline,
+                          suffixIcon: IconButton(
+                            onPressed: () {
+                              setState(() {
+                                _obscurePassword = !_obscurePassword;
+                              });
+                            },
+                            icon: Icon(
+                              _obscurePassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              color: Colors.blue,
+                            ),
+                          ),
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
@@ -228,18 +237,55 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       ),
                       const SizedBox(height: 16),
 
+                      TextFormField(
+                        controller: _confirmPasswordController,
+                        obscureText: _obscureConfirmPassword,
+                        decoration: _inputDecoration(
+                          label: 'Confirmer le mot de passe',
+                          icon: Icons.lock_reset,
+                          suffixIcon: IconButton(
+                            onPressed: () {
+                              setState(() {
+                                _obscureConfirmPassword =
+                                    !_obscureConfirmPassword;
+                              });
+                            },
+                            icon: Icon(
+                              _obscureConfirmPassword
+                                  ? Icons.visibility_off
+                                  : Icons.visibility,
+                              color: Colors.blue,
+                            ),
+                          ),
+                        ),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Veuillez confirmer le mot de passe';
+                          }
+                          if (value != _passwordController.text) {
+                            return 'Les mots de passe ne correspondent pas';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+
                       DropdownButtonFormField<UserRole>(
                         initialValue: _selectedRole,
                         decoration: _inputDecoration(
                           label: 'Rôle',
                           icon: Icons.badge_outlined,
                         ),
-                        items: UserRole.values.map((role) {
-                          return DropdownMenuItem<UserRole>(
-                            value: role,
-                            child: Text(_roleLabel(role)),
-                          );
-                        }).toList(),
+                        items: const [
+                          DropdownMenuItem<UserRole>(
+                            value: UserRole.boardingStudent,
+                            child: Text('Apprenant logé'),
+                          ),
+                          DropdownMenuItem<UserRole>(
+                            value: UserRole.externalStudent,
+                            child: Text('Apprenant externe'),
+                          ),
+                        ],
                         onChanged: (value) {
                           if (value != null) {
                             setState(() {

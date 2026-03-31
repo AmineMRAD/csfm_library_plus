@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
 import '../home/home_screen.dart';
+import '../admin/admin_screen.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -20,6 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _rememberMe = false;
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
@@ -33,27 +36,55 @@ class _LoginScreenState extends State<LoginScreen> {
       password: _passwordController.text.trim(),
     );
 
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (!mounted) return;
-
     if (user != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Connexion réussie'),
-          backgroundColor: Colors.blue,
-        ),
-      );
+      final userData = await _authService.getUserData(user.uid);
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => const HomeScreen(),
-        ),
-      );
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (!mounted) return;
+
+      if (userData != null) {
+        if (userData.role == UserRole.admin) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Bienvenue Admin'),
+              backgroundColor: Colors.blue,
+            ),
+          );
+
+          /// 🔥 ADMIN → AdminScreen
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const AdminScreen(),
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Connexion réussie'),
+              backgroundColor: Colors.blue,
+            ),
+          );
+
+          /// 👤 USER → HomeScreen
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const HomeScreen(),
+            ),
+          );
+        }
+      }
     } else {
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Email ou mot de passe incorrect'),
@@ -116,7 +147,7 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
-          child: Container(
+          child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 450),
             child: Card(
               elevation: 8,
@@ -163,6 +194,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 28),
 
+                      /// EMAIL
                       TextFormField(
                         controller: _emailController,
                         decoration: _inputDecoration(
@@ -181,6 +213,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       const SizedBox(height: 16),
 
+                      /// PASSWORD
                       TextFormField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
@@ -206,13 +239,33 @@ class _LoginScreenState extends State<LoginScreen> {
                             return 'Veuillez saisir votre mot de passe';
                           }
                           if (value.length < 6) {
-                            return 'Le mot de passe doit contenir au moins 6 caractères';
+                            return 'Minimum 6 caractères';
                           }
                           return null;
                         },
                       ),
-                      const SizedBox(height: 24),
 
+                      const SizedBox(height: 10),
+
+                      /// REMEMBER ME
+                      Row(
+                        children: [
+                          Checkbox(
+                            value: _rememberMe,
+                            activeColor: Colors.blue,
+                            onChanged: (value) {
+                              setState(() {
+                                _rememberMe = value ?? false;
+                              });
+                            },
+                          ),
+                          const Text('Se souvenir de moi'),
+                        ],
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      /// BUTTON
                       SizedBox(
                         width: double.infinity,
                         height: 52,
@@ -220,21 +273,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           onPressed: _isLoading ? null : _login,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.blue,
-                            foregroundColor: Colors.white,
-                            elevation: 4,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(14),
                             ),
                           ),
                           child: _isLoading
-                              ? const SizedBox(
-                                  width: 24,
-                                  height: 24,
-                                  child: CircularProgressIndicator(
-                                    color: Colors.white,
-                                    strokeWidth: 3,
-                                  ),
-                                )
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white)
                               : const Text(
                                   'Se connecter',
                                   style: TextStyle(
@@ -245,28 +290,30 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
 
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 20),
 
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
+                      /// REGISTER LINK
+                      Wrap(
+                        alignment: WrapAlignment.center,
                         children: [
                           Text(
-                            'Pas encore de compte ? ',
+                            'Vous n’avez pas encore de compte ? ',
                             style: TextStyle(
                               color: Colors.grey.shade700,
                             ),
                           ),
-                          TextButton(
-                            onPressed: () {
+                          GestureDetector(
+                            onTap: () {
                               Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (context) => const RegisterScreen(),
+                                  builder: (context) =>
+                                      const RegisterScreen(),
                                 ),
                               );
                             },
                             child: const Text(
-                              'S’inscrire',
+                              'Créez-en un',
                               style: TextStyle(
                                 color: Colors.blue,
                                 fontWeight: FontWeight.bold,
