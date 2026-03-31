@@ -1,12 +1,13 @@
-// ignore_for_file: deprecated_member_use
-
 import 'package:flutter/material.dart';
+import '../../services/admin_stats_service.dart';
 
 class AdminScreen extends StatelessWidget {
   const AdminScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final AdminStatsService statsService = AdminStatsService();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF4F8FF),
       body: SafeArea(
@@ -18,9 +19,76 @@ class AdminScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildHeader(context),
+                  _buildHeader(),
                   const SizedBox(height: 24),
-                  _buildStatsSection(),
+
+                  FutureBuilder<Map<String, int>>(
+                    future: statsService.getDashboardStats(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(20),
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      }
+
+                      if (snapshot.hasError) {
+                        return Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Text(
+                            'Erreur lors du chargement des statistiques',
+                            style: TextStyle(color: Colors.red),
+                          ),
+                        );
+                      }
+
+                      final stats = snapshot.data ??
+                          {
+                            'documents': 0,
+                            'emprunts': 0,
+                            'reservations': 0,
+                            'users': 0,
+                          };
+
+                      return Wrap(
+                        spacing: 16,
+                        runSpacing: 16,
+                        children: [
+                          _StatCard(
+                            title: 'Documents',
+                            value: stats['documents'].toString(),
+                            subtitle: 'Catalogue total',
+                            icon: Icons.library_books_rounded,
+                          ),
+                          _StatCard(
+                            title: 'Emprunts',
+                            value: stats['emprunts'].toString(),
+                            subtitle: 'Total enregistrés',
+                            icon: Icons.assignment_turned_in_rounded,
+                          ),
+                          _StatCard(
+                            title: 'Réservations',
+                            value: stats['reservations'].toString(),
+                            subtitle: 'Total enregistrées',
+                            icon: Icons.bookmark_added_rounded,
+                          ),
+                          _StatCard(
+                            title: 'Utilisateurs',
+                            value: stats['users'].toString(),
+                            subtitle: 'Comptes créés',
+                            icon: Icons.people_alt_rounded,
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+
                   const SizedBox(height: 24),
                   _buildQuickActionsSection(),
                   const SizedBox(height: 24),
@@ -38,7 +106,7 @@ class AdminScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader() {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(24),
@@ -103,39 +171,6 @@ class AdminScreen extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildStatsSection() {
-    return Wrap(
-      spacing: 16,
-      runSpacing: 16,
-      children: const [
-        _StatCard(
-          title: 'Documents',
-          value: '128',
-          subtitle: 'Catalogue total',
-          icon: Icons.library_books_rounded,
-        ),
-        _StatCard(
-          title: 'Emprunts actifs',
-          value: '34',
-          subtitle: 'En cours',
-          icon: Icons.assignment_turned_in_rounded,
-        ),
-        _StatCard(
-          title: 'Réservations',
-          value: '12',
-          subtitle: 'En attente',
-          icon: Icons.bookmark_added_rounded,
-        ),
-        _StatCard(
-          title: 'Retards',
-          value: '6',
-          subtitle: 'À suivre',
-          icon: Icons.warning_amber_rounded,
-        ),
-      ],
     );
   }
 
@@ -250,16 +285,16 @@ class AdminScreen extends StatelessWidget {
           child: _SectionCard(
             title: 'Statistiques clés',
             child: Column(
-              children: [
+              children: const [
                 _ChartPlaceholder(
                   title: 'Livres les plus empruntés',
-                  value: 'Top 5',
+                  value: 'À connecter',
                   icon: Icons.auto_graph_rounded,
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 _ChartPlaceholder(
                   title: 'Documents par catégorie',
-                  value: '6 catégories',
+                  value: 'À connecter',
                   icon: Icons.pie_chart_rounded,
                 ),
               ],
@@ -271,16 +306,16 @@ class AdminScreen extends StatelessWidget {
           child: _SectionCard(
             title: 'Suivi administratif',
             child: Column(
-              children: [
+              children: const [
                 _ChartPlaceholder(
                   title: 'Retards',
-                  value: '6 cas',
+                  value: 'À connecter',
                   icon: Icons.warning_rounded,
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12),
                 _ChartPlaceholder(
                   title: 'Activité utilisateurs',
-                  value: '48 actions',
+                  value: 'À connecter',
                   icon: Icons.trending_up_rounded,
                 ),
               ],
@@ -297,20 +332,20 @@ class AdminScreen extends StatelessWidget {
       child: Column(
         children: const [
           _AlertTile(
-            title: '3 documents arrivent à échéance aujourd’hui',
-            subtitle: 'Prévoir l’envoi de rappels automatiques',
+            title: 'Rappels de retour',
+            subtitle: 'Section prête pour les notifications automatiques',
             icon: Icons.notifications_active,
           ),
           SizedBox(height: 12),
           _AlertTile(
-            title: '2 réservations en attente de traitement',
-            subtitle: 'Vérifier la disponibilité et notifier les utilisateurs',
+            title: 'Réservations en attente',
+            subtitle: 'Section prête pour le traitement des réservations',
             icon: Icons.pending_actions_rounded,
           ),
           SizedBox(height: 12),
           _AlertTile(
-            title: '1 document signalé en retard',
-            subtitle: 'Suivi nécessaire par le bibliothécaire',
+            title: 'Suivi des retards',
+            subtitle: 'Section prête pour la gestion des dépassements',
             icon: Icons.report_problem_rounded,
           ),
         ],
