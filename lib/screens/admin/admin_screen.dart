@@ -1,7 +1,7 @@
 // ignore_for_file: deprecated_member_use
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import '../../services/admin_stats_service.dart';
 import 'document_list_screen.dart';
 
 class AdminScreen extends StatelessWidget {
@@ -9,37 +9,22 @@ class AdminScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statsService = AdminStatsService();
-
     return Scaffold(
       backgroundColor: const Color(0xFFEAF2FB),
       body: SafeArea(
-        child: FutureBuilder<Map<String, int>>(
-          future: statsService.getDashboardStats(),
-          builder: (context, snapshot) {
-            final stats = snapshot.data ??
-                {
-                  'documents': 0,
-                  'emprunts': 0,
-                  'reservations': 0,
-                  'users': 0,
-                };
-
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  _buildHeader(),
-                  const SizedBox(height: 20),
-                  _buildStats(stats),
-                  const SizedBox(height: 20),
-                  _buildActions(context),
-                  const SizedBox(height: 20),
-                  _buildRecentActivity(),
-                ],
-              ),
-            );
-          },
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 20),
+              _buildStats(),
+              const SizedBox(height: 20),
+              _buildActions(context),
+              const SizedBox(height: 20),
+              _buildRecentActivity(),
+            ],
+          ),
         ),
       ),
     );
@@ -90,7 +75,7 @@ class AdminScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildStats(Map<String, int> stats) {
+  Widget _buildStats() {
     return GridView.count(
       crossAxisCount: 2,
       shrinkWrap: true,
@@ -98,59 +83,72 @@ class AdminScreen extends StatelessWidget {
       mainAxisSpacing: 12,
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        _statCard(
-          "Documents",
-          stats['documents'],
-          Colors.blue,
-          Icons.menu_book,
+        _liveStatCard(
+          title: "Documents",
+          color: Colors.blue,
+          icon: Icons.menu_book,
+          stream: FirebaseFirestore.instance.collection('documents').snapshots(),
         ),
-        _statCard(
-          "Emprunts",
-          stats['emprunts'],
-          Colors.green,
-          Icons.description,
+        _liveStatCard(
+          title: "Emprunts",
+          color: Colors.green,
+          icon: Icons.description,
+          stream: FirebaseFirestore.instance.collection('emprunts').snapshots(),
         ),
-        _statCard(
-          "Réservations",
-          stats['reservations'],
-          Colors.orange,
-          Icons.calendar_today,
+        _liveStatCard(
+          title: "Réservations",
+          color: Colors.orange,
+          icon: Icons.calendar_today,
+          stream:
+              FirebaseFirestore.instance.collection('reservations').snapshots(),
         ),
-        _statCard(
-          "Utilisateurs",
-          stats['users'],
-          Colors.purple,
-          Icons.people,
+        _liveStatCard(
+          title: "Utilisateurs",
+          color: Colors.purple,
+          icon: Icons.people,
+          stream: FirebaseFirestore.instance.collection('users').snapshots(),
         ),
       ],
     );
   }
 
-  Widget _statCard(String title, int? value, Color color, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          CircleAvatar(
-            backgroundColor: color.withOpacity(0.2),
-            child: Icon(icon, color: color),
+  Widget _liveStatCard({
+    required String title,
+    required Color color,
+    required IconData icon,
+    required Stream<QuerySnapshot> stream,
+  }) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: stream,
+      builder: (context, snapshot) {
+        final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+
+        return Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
           ),
-          const Spacer(),
-          Text(
-            value.toString(),
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              CircleAvatar(
+                backgroundColor: color.withOpacity(0.2),
+                child: Icon(icon, color: color),
+              ),
+              const Spacer(),
+              Text(
+                count.toString(),
+                style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Text(title),
+            ],
           ),
-          Text(title),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -183,7 +181,12 @@ class AdminScreen extends StatelessWidget {
                 );
               }),
               _action(Icons.list, "Gérer\n emprunts", Colors.green, () {}),
-              _action(Icons.calendar_today, "Réservations", Colors.orange, () {}),
+              _action(
+                Icons.calendar_today,
+                "Réservations",
+                Colors.orange,
+                () {},
+              ),
               _action(Icons.people, "Utilisateurs", Colors.purple, () {}),
               _action(Icons.notifications, "Notifications", Colors.red, () {}),
               _action(Icons.bar_chart, "Statistiques", Colors.indigo, () {}),

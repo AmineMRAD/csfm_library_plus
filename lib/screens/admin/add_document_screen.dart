@@ -5,7 +5,9 @@ import '../../models/document_model.dart';
 import '../../services/document_service.dart';
 
 class AddDocumentScreen extends StatefulWidget {
-  const AddDocumentScreen({super.key});
+  final DocumentModel? document;
+
+  const AddDocumentScreen({super.key, this.document});
 
   @override
   State<AddDocumentScreen> createState() => _AddDocumentScreenState();
@@ -14,18 +16,17 @@ class AddDocumentScreen extends StatefulWidget {
 class _AddDocumentScreenState extends State<AddDocumentScreen> {
   final _formKey = GlobalKey<FormState>();
 
-  final TextEditingController _titleController = TextEditingController();
-  final TextEditingController _authorController = TextEditingController();
-  final TextEditingController _yearController =
-      TextEditingController(text: '2024');
+  late TextEditingController _titleController;
+  late TextEditingController _authorController;
+  late TextEditingController _yearController;
 
   final DocumentService _documentService = DocumentService();
 
-  String _selectedCategory = 'Informatique';
-  bool _available = true;
+  late String _selectedCategory;
+  late bool _available;
   bool _isLoading = false;
 
-  String _selectedImagePath = 'assets/images/documents/Book1.jpg';
+  late String _selectedImagePath;
 
   final List<String> _categories = [
     'Informatique',
@@ -48,6 +49,28 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
     'assets/images/documents/Book7.jpg',
     'assets/images/documents/Book8.jpg',
   ];
+
+  bool get isEditMode => widget.document != null;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _titleController = TextEditingController(
+      text: widget.document?.title ?? '',
+    );
+    _authorController = TextEditingController(
+      text: widget.document?.author ?? '',
+    );
+    _yearController = TextEditingController(
+      text: widget.document?.year.toString() ?? '2024',
+    );
+
+    _selectedCategory = widget.document?.category ?? 'Informatique';
+    _available = widget.document?.available ?? true;
+    _selectedImagePath =
+        widget.document?.imagePath ?? 'assets/images/documents/Book1.jpg';
+  }
 
   @override
   void dispose() {
@@ -94,7 +117,8 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
 
     try {
       final document = DocumentModel(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        id: widget.document?.id ??
+            DateTime.now().millisecondsSinceEpoch.toString(),
         title: _titleController.text.trim(),
         author: _authorController.text.trim(),
         category: _selectedCategory,
@@ -103,13 +127,21 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
         imagePath: _selectedImagePath,
       );
 
-      await _documentService.addDocument(document);
+      if (isEditMode) {
+        await _documentService.updateDocument(document);
+      } else {
+        await _documentService.addDocument(document);
+      }
 
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Document enregistré avec succès'),
+        SnackBar(
+          content: Text(
+            isEditMode
+                ? 'Document modifié avec succès'
+                : 'Document enregistré avec succès',
+          ),
           backgroundColor: Colors.blue,
         ),
       );
@@ -449,9 +481,11 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
                                 ? const CircularProgressIndicator(
                                     color: Colors.white,
                                   )
-                                : const Text(
-                                    'Enregistrer',
-                                    style: TextStyle(
+                                : Text(
+                                    isEditMode
+                                        ? 'Enregistrer les modifications'
+                                        : 'Enregistrer',
+                                    style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -501,9 +535,9 @@ class _AddDocumentScreenState extends State<AddDocumentScreen> {
             ),
           ),
           const SizedBox(height: 18),
-          const Text(
-            'Ajouter un document',
-            style: TextStyle(
+          Text(
+            isEditMode ? 'Modifier le document' : 'Ajouter un document',
+            style: const TextStyle(
               color: Colors.white,
               fontSize: 24,
               fontWeight: FontWeight.bold,

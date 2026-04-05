@@ -2,10 +2,71 @@
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../../models/document_model.dart';
+import '../../services/document_service.dart';
 import 'add_document_screen.dart';
 
 class DocumentListScreen extends StatelessWidget {
   const DocumentListScreen({super.key});
+
+  Future<void> _confirmDelete(
+    BuildContext context,
+    String documentId,
+  ) async {
+    final documentService = DocumentService();
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Supprimer le document'),
+          content: const Text(
+            'Êtes-vous sûr de vouloir supprimer ce document ?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+              ),
+              child: const Text(
+                'Supprimer',
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm == true) {
+      await documentService.deleteDocument(documentId);
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Document supprimé avec succès'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _editDocument(BuildContext context, Map<String, dynamic> data) {
+    final document = DocumentModel.fromMap(data);
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AddDocumentScreen(document: document),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +125,12 @@ class DocumentListScreen extends StatelessWidget {
 
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 14),
-                        child: _buildDocumentCard(data),
+                        child: _buildDocumentCard(
+                          context,
+                          data,
+                          onEdit: () => _editDocument(context, data),
+                          onDelete: () => _confirmDelete(context, data['id']),
+                        ),
                       );
                     },
                   );
@@ -224,7 +290,12 @@ class DocumentListScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDocumentCard(Map<String, dynamic> data) {
+  Widget _buildDocumentCard(
+    BuildContext context,
+    Map<String, dynamic> data, {
+    required VoidCallback onEdit,
+    required VoidCallback onDelete,
+  }) {
     final bool available = data['available'] ?? true;
     final String imagePath =
         (data['imagePath'] ?? 'assets/images/documents/Book1.jpg').toString();
@@ -304,20 +375,26 @@ class DocumentListScreen extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: _smallButton(
-                        "Modifier",
-                        Icons.edit_outlined,
-                        const Color(0xFFDDE8FF),
-                        const Color(0xFF2563EB),
+                      child: GestureDetector(
+                        onTap: onEdit,
+                        child: _smallButton(
+                          "Modifier",
+                          Icons.edit_outlined,
+                          const Color(0xFFDDE8FF),
+                          const Color(0xFF2563EB),
+                        ),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: _smallButton(
-                        "Supprimer",
-                        Icons.delete_outline,
-                        const Color(0xFFFFE5E5),
-                        Colors.red,
+                      child: GestureDetector(
+                        onTap: onDelete,
+                        child: _smallButton(
+                          "Supprimer",
+                          Icons.delete_outline,
+                          const Color(0xFFFFE5E5),
+                          Colors.red,
+                        ),
                       ),
                     ),
                   ],
