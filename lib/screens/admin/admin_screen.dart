@@ -1,106 +1,45 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import '../../services/admin_stats_service.dart';
+import 'document_list_screen.dart';
 
 class AdminScreen extends StatelessWidget {
   const AdminScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final AdminStatsService statsService = AdminStatsService();
+    final statsService = AdminStatsService();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F8FF),
+      backgroundColor: const Color(0xFFEAF2FB),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1200),
+        child: FutureBuilder<Map<String, int>>(
+          future: statsService.getDashboardStats(),
+          builder: (context, snapshot) {
+            final stats = snapshot.data ??
+                {
+                  'documents': 0,
+                  'emprunts': 0,
+                  'reservations': 0,
+                  'users': 0,
+                };
+
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   _buildHeader(),
-                  const SizedBox(height: 24),
-
-                  FutureBuilder<Map<String, int>>(
-                    future: statsService.getDashboardStats(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(
-                          child: Padding(
-                            padding: EdgeInsets.all(20),
-                            child: CircularProgressIndicator(),
-                          ),
-                        );
-                      }
-
-                      if (snapshot.hasError) {
-                        return Container(
-                          padding: const EdgeInsets.all(20),
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade50,
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: const Text(
-                            'Erreur lors du chargement des statistiques',
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        );
-                      }
-
-                      final stats = snapshot.data ??
-                          {
-                            'documents': 0,
-                            'emprunts': 0,
-                            'reservations': 0,
-                            'users': 0,
-                          };
-
-                      return Wrap(
-                        spacing: 16,
-                        runSpacing: 16,
-                        children: [
-                          _StatCard(
-                            title: 'Documents',
-                            value: stats['documents'].toString(),
-                            subtitle: 'Catalogue total',
-                            icon: Icons.library_books_rounded,
-                          ),
-                          _StatCard(
-                            title: 'Emprunts',
-                            value: stats['emprunts'].toString(),
-                            subtitle: 'Total enregistrés',
-                            icon: Icons.assignment_turned_in_rounded,
-                          ),
-                          _StatCard(
-                            title: 'Réservations',
-                            value: stats['reservations'].toString(),
-                            subtitle: 'Total enregistrées',
-                            icon: Icons.bookmark_added_rounded,
-                          ),
-                          _StatCard(
-                            title: 'Utilisateurs',
-                            value: stats['users'].toString(),
-                            subtitle: 'Comptes créés',
-                            icon: Icons.people_alt_rounded,
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-
-                  const SizedBox(height: 24),
-                  _buildQuickActionsSection(),
-                  const SizedBox(height: 24),
-                  _buildMainManagementSection(),
-                  const SizedBox(height: 24),
-                  _buildStatisticsSection(),
-                  const SizedBox(height: 24),
-                  _buildAlertsSection(),
+                  const SizedBox(height: 20),
+                  _buildStats(stats),
+                  const SizedBox(height: 20),
+                  _buildActions(context),
+                  const SizedBox(height: 20),
+                  _buildRecentActivity(),
                 ],
               ),
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
@@ -108,565 +47,227 @@ class AdminScreen extends StatelessWidget {
 
   Widget _buildHeader() {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            Colors.blue.shade700,
-            Colors.blue.shade500,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+        gradient: const LinearGradient(
+          colors: [Color(0xFF2563EB), Color(0xFF1E40AF)],
         ),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.blue.withOpacity(0.18),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 68,
-            height: 68,
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.18),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Icon(
-              Icons.admin_panel_settings_rounded,
-              color: Colors.white,
-              size: 34,
-            ),
-          ),
-          const SizedBox(width: 18),
-          Expanded(
+          const Icon(Icons.menu_book, color: Colors.white, size: 30),
+          const SizedBox(width: 12),
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Dashboard Administrateur',
+                Text(
+                  "Dashboard Administrateur",
                   style: TextStyle(
                     color: Colors.white,
-                    fontSize: 28,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 8),
                 Text(
-                  'Gérez les documents, les emprunts, les réservations, les utilisateurs et les statistiques de la bibliothèque.',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.92),
-                    fontSize: 15,
-                    height: 1.5,
-                  ),
+                  "Bienvenue, Admin",
+                  style: TextStyle(color: Colors.white70),
                 ),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickActionsSection() {
-    return _SectionCard(
-      title: 'Actions rapides',
-      child: Wrap(
-        spacing: 14,
-        runSpacing: 14,
-        children: const [
-          _ActionButton(
-            label: 'Ajouter document',
-            icon: Icons.add_box_rounded,
-          ),
-          _ActionButton(
-            label: 'Gérer emprunts',
-            icon: Icons.swap_horiz_rounded,
-          ),
-          _ActionButton(
-            label: 'Voir réservations',
-            icon: Icons.bookmark_rounded,
-          ),
-          _ActionButton(
-            label: 'Utilisateurs',
-            icon: Icons.people_alt_rounded,
-          ),
-          _ActionButton(
-            label: 'Notifications',
-            icon: Icons.notifications_active_rounded,
-          ),
-          _ActionButton(
-            label: 'Statistiques',
-            icon: Icons.bar_chart_rounded,
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.white24,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.arrow_forward, color: Colors.white),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMainManagementSection() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildStats(Map<String, int> stats) {
+    return GridView.count(
+      crossAxisCount: 2,
+      shrinkWrap: true,
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      physics: const NeverScrollableScrollPhysics(),
       children: [
-        Expanded(
-          child: _SectionCard(
-            title: 'Gestion des documents',
-            child: Column(
-              children: const [
-                _InfoTile(
-                  icon: Icons.menu_book_rounded,
-                  title: 'Catalogue complet',
-                  subtitle:
-                      'Livres, magazines, DVD et supports pédagogiques',
-                ),
-                SizedBox(height: 12),
-                _InfoTile(
-                  icon: Icons.image_rounded,
-                  title: 'Couvertures et stockage',
-                  subtitle:
-                      'Gestion des images des documents via Firebase Storage',
-                ),
-                SizedBox(height: 12),
-                _InfoTile(
-                  icon: Icons.search_rounded,
-                  title: 'Recherche et filtres',
-                  subtitle:
-                      'Recherche par mots-clés, catégories et disponibilité',
-                ),
-              ],
-            ),
-          ),
+        _statCard(
+          "Documents",
+          stats['documents'],
+          Colors.blue,
+          Icons.menu_book,
         ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _SectionCard(
-            title: 'Gestion des emprunts',
-            child: Column(
-              children: const [
-                _InfoTile(
-                  icon: Icons.how_to_reg_rounded,
-                  title: 'Validation des emprunts',
-                  subtitle:
-                      'Validation des emprunts en présentiel par le bibliothécaire',
-                ),
-                SizedBox(height: 12),
-                _InfoTile(
-                  icon: Icons.history_rounded,
-                  title: 'Suivi des retours',
-                  subtitle:
-                      'Suivi des dates, retards et historique utilisateur',
-                ),
-                SizedBox(height: 12),
-                _InfoTile(
-                  icon: Icons.priority_high_rounded,
-                  title: 'Réservations prioritaires',
-                  subtitle:
-                      'Gestion des réservations pour les apprenants logés',
-                ),
-              ],
-            ),
-          ),
+        _statCard(
+          "Emprunts",
+          stats['emprunts'],
+          Colors.green,
+          Icons.description,
+        ),
+        _statCard(
+          "Réservations",
+          stats['reservations'],
+          Colors.orange,
+          Icons.calendar_today,
+        ),
+        _statCard(
+          "Utilisateurs",
+          stats['users'],
+          Colors.purple,
+          Icons.people,
         ),
       ],
     );
   }
 
-  Widget _buildStatisticsSection() {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: _SectionCard(
-            title: 'Statistiques clés',
-            child: Column(
-              children: const [
-                _ChartPlaceholder(
-                  title: 'Livres les plus empruntés',
-                  value: 'À connecter',
-                  icon: Icons.auto_graph_rounded,
-                ),
-                SizedBox(height: 12),
-                _ChartPlaceholder(
-                  title: 'Documents par catégorie',
-                  value: 'À connecter',
-                  icon: Icons.pie_chart_rounded,
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _SectionCard(
-            title: 'Suivi administratif',
-            child: Column(
-              children: const [
-                _ChartPlaceholder(
-                  title: 'Retards',
-                  value: 'À connecter',
-                  icon: Icons.warning_rounded,
-                ),
-                SizedBox(height: 12),
-                _ChartPlaceholder(
-                  title: 'Activité utilisateurs',
-                  value: 'À connecter',
-                  icon: Icons.trending_up_rounded,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAlertsSection() {
-    return _SectionCard(
-      title: 'Notifications et alertes',
-      child: Column(
-        children: const [
-          _AlertTile(
-            title: 'Rappels de retour',
-            subtitle: 'Section prête pour les notifications automatiques',
-            icon: Icons.notifications_active,
-          ),
-          SizedBox(height: 12),
-          _AlertTile(
-            title: 'Réservations en attente',
-            subtitle: 'Section prête pour le traitement des réservations',
-            icon: Icons.pending_actions_rounded,
-          ),
-          SizedBox(height: 12),
-          _AlertTile(
-            title: 'Suivi des retards',
-            subtitle: 'Section prête pour la gestion des dépassements',
-            icon: Icons.report_problem_rounded,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SectionCard extends StatelessWidget {
-  final String title;
-  final Widget child;
-
-  const _SectionCard({
-    required this.title,
-    required this.child,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _statCard(String title, int? value, Color color, IconData icon) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          CircleAvatar(
+            backgroundColor: color.withOpacity(0.2),
+            child: Icon(icon, color: color),
+          ),
+          const Spacer(),
           Text(
-            title,
+            value.toString(),
             style: const TextStyle(
-              color: Colors.blue,
-              fontSize: 20,
+              fontSize: 22,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 18),
-          child,
+          Text(title),
         ],
       ),
     );
   }
-}
 
-class _StatCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final String subtitle;
-  final IconData icon;
-
-  const _StatCard({
-    required this.title,
-    required this.value,
-    required this.subtitle,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildActions(BuildContext context) {
     return Container(
-      width: 260,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        borderRadius: BorderRadius.circular(18),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 54,
-            height: 54,
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(
-              icon,
-              color: Colors.blue,
-              size: 28,
-            ),
+          const Text(
+            "Actions rapides",
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  value,
-                  style: const TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
+          const SizedBox(height: 12),
+          GridView.count(
+            crossAxisCount: 3,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            children: [
+              _action(Icons.add, "Ajouter\n document", Colors.blue, () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const DocumentListScreen(),
                   ),
-                ),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 12.5,
-                    color: Colors.grey.shade600,
-                  ),
-                ),
-              ],
-            ),
+                );
+              }),
+              _action(Icons.list, "Gérer\n emprunts", Colors.green, () {}),
+              _action(Icons.calendar_today, "Réservations", Colors.orange, () {}),
+              _action(Icons.people, "Utilisateurs", Colors.purple, () {}),
+              _action(Icons.notifications, "Notifications", Colors.red, () {}),
+              _action(Icons.bar_chart, "Statistiques", Colors.indigo, () {}),
+            ],
           ),
         ],
       ),
     );
   }
-}
 
-class _ActionButton extends StatelessWidget {
-  final String label;
-  final IconData icon;
-
-  const _ActionButton({
-    required this.label,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ElevatedButton.icon(
-      onPressed: () {},
-      icon: Icon(icon, size: 20),
-      label: Text(label),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
-        elevation: 2,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+  Widget _action(
+    IconData icon,
+    String label,
+    Color color,
+    VoidCallback onTap,
+  ) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircleAvatar(
+            backgroundColor: color,
+            child: Icon(icon, color: Colors.white),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            label,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12),
+          ),
+        ],
       ),
     );
   }
-}
 
-class _InfoTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  const _InfoTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildRecentActivity() {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFF),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.blue.shade50),
       ),
-      child: Row(
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: Colors.blue, size: 26),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 15.5,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    color: Colors.grey.shade700,
-                    height: 1.45,
-                  ),
-                ),
-              ],
-            ),
+          const Text(
+            "Activité récente",
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
+          const SizedBox(height: 12),
+          _activity("M", "Nouvel emprunt", "Marie Durant", "Il y a 5 min"),
+          _activity("P", "Réservation", "Pierre Martin", "Il y a 12 min"),
+          _activity("S", "Retour document", "Sophie Lefebvre", "Il y a 23 min"),
         ],
       ),
     );
   }
-}
 
-class _ChartPlaceholder extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-
-  const _ChartPlaceholder({
-    required this.title,
-    required this.value,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _activity(String letter, String title, String user, String time) {
     return Container(
-      padding: const EdgeInsets.all(18),
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        color: const Color(0xFFF7FAFF),
+        color: const Color(0xFFF4F8FF),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(icon, color: Colors.blue),
+          CircleAvatar(
+            backgroundColor: Colors.blue.shade100,
+            child: Text(letter),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                    color: Colors.grey.shade700,
-                    fontSize: 13.5,
-                  ),
-                ),
+                Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(user, style: const TextStyle(fontSize: 12)),
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _AlertTile extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-
-  const _AlertTile({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFF),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: Colors.blue, size: 24),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: Colors.grey.shade700,
-                    fontSize: 13.5,
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          Text(time, style: const TextStyle(fontSize: 11)),
         ],
       ),
     );
