@@ -1,7 +1,12 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
+import '../../models/user_model.dart';
+import '../../services/auth_service.dart';
+import '../auth/login_screen.dart';
 import 'document_list_screen.dart';
 import 'loan_list_screen.dart';
 import 'reservation_list_screen.dart';
@@ -12,30 +17,223 @@ import 'notifications_screen.dart';
 class AdminScreen extends StatelessWidget {
   const AdminScreen({super.key});
 
+  Future<void> _showAdminProfileSheet(BuildContext context) async {
+    final auth = FirebaseAuth.instance;
+    final currentUser = auth.currentUser;
+
+    if (currentUser == null) return;
+
+    final authService = AuthService();
+    final userData = await authService.getUserData(currentUser.uid);
+
+    if (!context.mounted) return;
+
+    await showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        final name = userData?.name ?? 'Admin';
+        final email = userData?.email ?? currentUser.email ?? '--';
+        final role = _roleLabel(userData?.role);
+
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(24),
+            ),
+          ),
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Mon profil',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF111827),
+                          ),
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () => Navigator.pop(sheetContext),
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF3F4F6),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: const Icon(Icons.close),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  _profileRow(
+                    icon: Icons.person_outline_rounded,
+                    label: 'Nom',
+                    value: name,
+                  ),
+                  const SizedBox(height: 14),
+
+                  _profileRow(
+                    icon: Icons.mail_outline_rounded,
+                    label: 'Email',
+                    value: email,
+                  ),
+                  const SizedBox(height: 14),
+
+                  _profileRow(
+                    icon: Icons.badge_outlined,
+                    label: 'Rôle',
+                    value: role,
+                  ),
+                  const SizedBox(height: 24),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        await FirebaseAuth.instance.signOut();
+
+                        if (!sheetContext.mounted) return;
+
+                        Navigator.pop(sheetContext);
+
+                        if (!context.mounted) return;
+
+                        Navigator.pushAndRemoveUntil(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const LoginScreen(),
+                          ),
+                          (route) => false,
+                        );
+                      },
+                      icon: const Icon(Icons.logout_rounded),
+                      label: const Text(
+                        'Se déconnecter',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  String _roleLabel(UserRole? role) {
+    switch (role) {
+      case UserRole.admin:
+        return 'Administrateur';
+      case UserRole.boardingStudent:
+        return 'Apprenant logé';
+      case UserRole.externalStudent:
+        return 'Apprenant externe';
+      default:
+        return 'Administrateur';
+    }
+  }
+
+  Widget _profileRow({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: const Color(0xFF2563EB)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  label,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF6B7280),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    color: Color(0xFF111827),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFEAF2FB),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              _buildHeader(),
-              const SizedBox(height: 20),
-              _buildStats(),
-              const SizedBox(height: 20),
-              _buildActions(context),
-              const SizedBox(height: 20),
-              _buildRecentActivity(),
-            ],
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFEAF2FB),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                _buildHeader(context),
+                const SizedBox(height: 20),
+                _buildStats(),
+                const SizedBox(height: 20),
+                _buildActions(context),
+                const SizedBox(height: 20),
+                _buildRecentActivity(),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -61,19 +259,25 @@ class AdminScreen extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  "Bienvenue, Admin",
+                  "Bienvenue, Admin Test",
                   style: TextStyle(color: Colors.white70),
                 ),
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: Colors.white24,
-              borderRadius: BorderRadius.circular(10),
+          GestureDetector(
+            onTap: () => _showAdminProfileSheet(context),
+            child: Container(
+              padding: const EdgeInsets.all(9),
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: const Icon(
+                Icons.person_outline_rounded,
+                color: Colors.white,
+              ),
             ),
-            child: const Icon(Icons.arrow_forward, color: Colors.white),
           ),
         ],
       ),
@@ -92,9 +296,7 @@ class AdminScreen extends StatelessWidget {
           title: "Documents",
           color: Colors.blue,
           icon: Icons.menu_book,
-          stream: FirebaseFirestore.instance
-              .collection('documents')
-              .snapshots(),
+          stream: FirebaseFirestore.instance.collection('documents').snapshots(),
         ),
         _liveStatCard(
           title: "Emprunts",
@@ -106,9 +308,7 @@ class AdminScreen extends StatelessWidget {
           title: "Réservations",
           color: Colors.orange,
           icon: Icons.calendar_today,
-          stream: FirebaseFirestore.instance
-              .collection('reservations')
-              .snapshots(),
+          stream: FirebaseFirestore.instance.collection('reservations').snapshots(),
         ),
         _liveStatCard(
           title: "Utilisateurs",
@@ -253,13 +453,10 @@ class AdminScreen extends StatelessWidget {
       stream: FirebaseFirestore.instance.collection('emprunts').snapshots(),
       builder: (context, loanSnapshot) {
         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance
-              .collection('reservations')
-              .snapshots(),
+          stream: FirebaseFirestore.instance.collection('reservations').snapshots(),
           builder: (context, reservationSnapshot) {
             if (loanSnapshot.connectionState == ConnectionState.waiting ||
-                reservationSnapshot.connectionState ==
-                    ConnectionState.waiting) {
+                reservationSnapshot.connectionState == ConnectionState.waiting) {
               return Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -276,13 +473,19 @@ class AdminScreen extends StatelessWidget {
             }
 
             final loans = (loanSnapshot.data?.docs ?? []).map((doc) {
-              return {...doc.data(), '_type': 'loan', '_id': doc.id};
+              return {
+                ...doc.data(),
+                '_type': 'loan',
+                '_id': doc.id,
+              };
             }).toList();
 
-            final reservations = (reservationSnapshot.data?.docs ?? []).map((
-              doc,
-            ) {
-              return {...doc.data(), '_type': 'reservation', '_id': doc.id};
+            final reservations = (reservationSnapshot.data?.docs ?? []).map((doc) {
+              return {
+                ...doc.data(),
+                '_type': 'reservation',
+                '_id': doc.id,
+              };
             }).toList();
 
             final allActivities = [...loans, ...reservations];
@@ -306,7 +509,10 @@ class AdminScreen extends StatelessWidget {
                 children: [
                   const Text(
                     "Activité récente",
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18,
+                    ),
                   ),
                   const SizedBox(height: 12),
                   if (recent.isEmpty)
@@ -314,7 +520,10 @@ class AdminScreen extends StatelessWidget {
                       padding: EdgeInsets.symmetric(vertical: 8),
                       child: Text(
                         "Aucune activité récente",
-                        style: TextStyle(fontSize: 13, color: Colors.black54),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.black54,
+                        ),
                       ),
                     )
                   else
@@ -370,7 +579,10 @@ class AdminScreen extends StatelessWidget {
             backgroundColor: color.withOpacity(0.18),
             child: Text(
               letter,
-              style: TextStyle(color: color, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                color: color,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           const SizedBox(width: 10),
@@ -382,13 +594,19 @@ class AdminScreen extends StatelessWidget {
                   title,
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                Text(userName, style: const TextStyle(fontSize: 12)),
+                Text(
+                  userName,
+                  style: const TextStyle(fontSize: 12),
+                ),
               ],
             ),
           ),
           Text(
             _timeAgo(date),
-            style: const TextStyle(fontSize: 11, color: Colors.black54),
+            style: const TextStyle(
+              fontSize: 11,
+              color: Colors.black54,
+            ),
           ),
         ],
       ),
@@ -417,8 +635,6 @@ class AdminScreen extends StatelessWidget {
   DateTime _extractDate(Map<String, dynamic> data) {
     const possibleKeys = [
       'createdAt',
-      'reservationCreatedAt',
-      'returnCreatedAt',
       'borrowDate',
       'reservationDate',
       'date',
@@ -459,7 +675,7 @@ class AdminScreen extends StatelessWidget {
   String _timeAgo(DateTime date) {
     final diff = DateTime.now().difference(date);
 
-    if (diff.inSeconds < 60) return "À l'instant";
+    if (diff.inMinutes < 1) return "À l'instant";
     if (diff.inMinutes < 60) return "Il y a ${diff.inMinutes} min";
     if (diff.inHours < 24) return "Il y a ${diff.inHours} h";
     return "Il y a ${diff.inDays} j";
