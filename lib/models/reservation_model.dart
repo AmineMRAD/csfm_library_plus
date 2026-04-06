@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class ReservationModel {
   final String id;
   final String userId;
@@ -7,6 +9,7 @@ class ReservationModel {
   final String documentTitle;
   final String date;
   final String status;
+  final DateTime? createdAt;
 
   ReservationModel({
     required this.id,
@@ -17,6 +20,7 @@ class ReservationModel {
     required this.documentTitle,
     required this.date,
     required this.status,
+    this.createdAt,
   });
 
   Map<String, dynamic> toMap() {
@@ -29,10 +33,22 @@ class ReservationModel {
       'documentTitle': documentTitle,
       'date': date,
       'status': status,
+      'createdAt': createdAt != null
+          ? Timestamp.fromDate(createdAt!)
+          : FieldValue.serverTimestamp(),
     };
   }
 
   factory ReservationModel.fromMap(Map<String, dynamic> map) {
+    DateTime? parsedCreatedAt;
+
+    final rawCreatedAt = map['createdAt'];
+    if (rawCreatedAt is Timestamp) {
+      parsedCreatedAt = rawCreatedAt.toDate();
+    } else if (rawCreatedAt is String) {
+      parsedCreatedAt = DateTime.tryParse(rawCreatedAt);
+    }
+
     return ReservationModel(
       id: map['id'] ?? '',
       userId: map['userId'] ?? '',
@@ -42,6 +58,7 @@ class ReservationModel {
       documentTitle: map['documentTitle'] ?? '',
       date: map['date'] ?? '',
       status: map['status'] ?? 'pending',
+      createdAt: parsedCreatedAt,
     );
   }
 }

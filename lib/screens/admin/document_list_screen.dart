@@ -6,8 +6,33 @@ import '../../models/document_model.dart';
 import '../../services/document_service.dart';
 import 'add_document_screen.dart';
 
-class DocumentListScreen extends StatelessWidget {
+class DocumentListScreen extends StatefulWidget {
   const DocumentListScreen({super.key});
+
+  @override
+  State<DocumentListScreen> createState() => _DocumentListScreenState();
+}
+
+class _DocumentListScreenState extends State<DocumentListScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  final ValueNotifier<String> _searchNotifier = ValueNotifier('');
+  final ValueNotifier<String> _filterNotifier = ValueNotifier('Tous');
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      _searchNotifier.value = _searchController.text.trim().toLowerCase();
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    _searchNotifier.dispose();
+    _filterNotifier.dispose();
+    super.dispose();
+  }
 
   Future<void> _confirmDelete(
     BuildContext context,
@@ -68,76 +93,126 @@ class DocumentListScreen extends StatelessWidget {
     );
   }
 
+  bool _matchesSearch(Map<String, dynamic> data, String query) {
+    if (query.isEmpty) return true;
+
+    final title = (data['title'] ?? '').toString().toLowerCase();
+    final author = (data['author'] ?? '').toString().toLowerCase();
+    final category = (data['category'] ?? '').toString().toLowerCase();
+
+    return title.contains(query) ||
+        author.contains(query) ||
+        category.contains(query);
+  }
+
+  bool _matchesFilter(Map<String, dynamic> data, String selectedFilter) {
+    final category = (data['category'] ?? '').toString();
+
+    if (selectedFilter == "Tous") return true;
+    return category == selectedFilter;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: const Color(0xFFEAF2FB),
       body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(context),
-            Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('documents')
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: CircularProgressIndicator(),
-                    );
-                  }
+        child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: FirebaseFirestore.instance
+              .collection('documents')
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            }
 
-                  if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                    return ListView(
-                      padding: const EdgeInsets.all(16),
-                      children: [
-                        _buildSearchAndFilters(),
-                        const SizedBox(height: 16),
-                        _buildAddButton(context),
-                        const SizedBox(height: 24),
-                        const Center(
-                          child: Text("Aucun document disponible"),
-                        ),
-                      ],
-                    );
-                  }
+            final docs = snapshot.data?.docs ?? [];
 
-                  final docs = snapshot.data!.docs;
+            return CustomScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: _buildHeader(context),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                    child: _buildSearchAndFilters(),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 20),
+                    child: _buildAddButton(context),
+                  ),
+                ),
+                if (docs.isEmpty)
+                  const SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Text("Aucun document disponible"),
+                    ),
+                  )
+                else
+                  ValueListenableBuilder<String>(
+                    valueListenable: _searchNotifier,
+                    builder: (context, searchQuery, _) {
+                      return ValueListenableBuilder<String>(
+                        valueListenable: _filterNotifier,
+                        builder: (context, selectedFilter, _) {
+                          final filteredDocs = docs.where((doc) {
+                            final data = doc.data();
+                            return _matchesSearch(data, searchQuery) &&
+                                _matchesFilter(data, selectedFilter);
+                          }).toList();
 
-                  return ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: docs.length + 2,
-                    itemBuilder: (context, index) {
-                      if (index == 0) {
-                        return _buildSearchAndFilters();
-                      }
+                          if (filteredDocs.isEmpty) {
+                            return const SliverFillRemaining(
+                              hasScrollBody: false,
+                              child: Center(
+                                child: Text("Aucun document trouvé"),
+                              ),
+                            );
+                          }
 
-                      if (index == 1) {
-                        return Padding(
-                          padding: const EdgeInsets.only(top: 16, bottom: 16),
-                          child: _buildAddButton(context),
-                        );
-                      }
+                          return SliverPadding(
+                            padding: EdgeInsets.fromLTRB(
+                              16,
+                              0,
+                              16,
+                              MediaQuery.of(context).viewInsets.bottom + 16,
+                            ),
+                            sliver: SliverList.separated(
+                              itemCount: filteredDocs.length,
+                              itemBuilder: (context, index) {
+                                final doc = filteredDocs[index];
+                                final data = doc.data();
 
-                      final doc = docs[index - 2];
-                      final data = doc.data() as Map<String, dynamic>;
-
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 14),
-                        child: _buildDocumentCard(
-                          context,
-                          data,
-                          onEdit: () => _editDocument(context, data),
-                          onDelete: () => _confirmDelete(context, data['id']),
-                        ),
+                                return _buildDocumentCard(
+                                  context,
+                                  data,
+                                  onEdit: () => _editDocument(context, data),
+                                  onDelete: () => _confirmDelete(
+                                    context,
+                                    (data['id'] ?? doc.id).toString(),
+                                  ),
+                                );
+                              },
+                              separatorBuilder: (_, __) =>
+                                  const SizedBox(height: 14),
+                            ),
+                          );
+                        },
                       );
                     },
-                  );
-                },
-              ),
-            ),
-          ],
+                  ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -211,6 +286,8 @@ class DocumentListScreen extends StatelessWidget {
       child: Column(
         children: [
           TextField(
+            controller: _searchController,
+            textInputAction: TextInputAction.search,
             decoration: InputDecoration(
               hintText: "Rechercher un document...",
               prefixIcon: const Icon(Icons.search),
@@ -223,37 +300,49 @@ class DocumentListScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _filterChip("Tous", true),
-                const SizedBox(width: 8),
-                _filterChip("Informatique", false),
-                const SizedBox(width: 8),
-                _filterChip("Mathématiques", false),
-                const SizedBox(width: 8),
-                _filterChip("Histoire", false),
-              ],
-            ),
+          ValueListenableBuilder<String>(
+            valueListenable: _filterNotifier,
+            builder: (context, selectedFilter, _) {
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    _filterChip("Tous", selectedFilter),
+                    const SizedBox(width: 8),
+                    _filterChip("Informatique", selectedFilter),
+                    const SizedBox(width: 8),
+                    _filterChip("Mathématiques", selectedFilter),
+                    const SizedBox(width: 8),
+                    _filterChip("Histoire", selectedFilter),
+                  ],
+                ),
+              );
+            },
           ),
         ],
       ),
     );
   }
 
-  Widget _filterChip(String label, bool selected) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: selected ? const Color(0xFF2563EB) : const Color(0xFFF1F3F6),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: selected ? Colors.white : Colors.black87,
-          fontWeight: FontWeight.w500,
+  Widget _filterChip(String label, String selectedFilter) {
+    final selected = selectedFilter == label;
+
+    return GestureDetector(
+      onTap: () {
+        _filterNotifier.value = label;
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF2563EB) : const Color(0xFFF1F3F6),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : Colors.black87,
+            fontWeight: FontWeight.w500,
+          ),
         ),
       ),
     );

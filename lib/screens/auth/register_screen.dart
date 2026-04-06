@@ -1,7 +1,10 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
 import '../home/home_screen.dart';
+import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -21,7 +24,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   final AuthService _authService = AuthService();
 
-  UserRole _selectedRole = UserRole.boardingStudent;
+  UserRole _selectedRole = UserRole.externalStudent;
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -71,28 +74,47 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   InputDecoration _inputDecoration({
-    required String label,
+    required String hint,
     required IconData icon,
     Widget? suffixIcon,
   }) {
     return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon, color: Colors.blue),
+      hintText: hint,
+      hintStyle: const TextStyle(
+        color: Color(0xFF9CA3AF),
+        fontSize: 16,
+      ),
+      prefixIcon: Icon(
+        icon,
+        color: const Color(0xFF9CA3AF),
+        size: 22,
+      ),
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+      fillColor: const Color(0xFFF8FAFC),
+      contentPadding: const EdgeInsets.symmetric(
+        vertical: 18,
+        horizontal: 16,
+      ),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: Colors.blue.shade100),
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.blue, width: 2),
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.6),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Colors.red),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Colors.red),
       ),
     );
   }
@@ -106,77 +128,101 @@ class _RegisterScreenState extends State<RegisterScreen> {
     super.dispose();
   }
 
+  String _roleLabel(UserRole role) {
+    switch (role) {
+      case UserRole.boardingStudent:
+        return 'Apprenant logé';
+      case UserRole.externalStudent:
+        return 'Apprenant externe';
+      case UserRole.admin:
+        return 'Administrateur';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F8FF),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.blue,
-        title: const Text(
-          'Inscription',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: Center(
+      backgroundColor: const Color(0xFFEAF2FB),
+      body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 450),
-            child: Card(
-              elevation: 8,
-              color: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => Navigator.pop(context),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF2563EB),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 8,
+                    ),
+                  ),
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
+                  label: const Text(
+                    'Retour',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(maxWidth: 430),
+                padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.07),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
                 child: Form(
                   key: _formKey,
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.person_add_alt_1,
-                          size: 40,
-                          color: Colors.blue,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
                       const Text(
                         'Créer un compte',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue,
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1E40AF),
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        'Veuillez remplir les informations ci-dessous',
+                      const Text(
+                        'Rejoignez notre bibliothèque',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade600,
+                          fontSize: 17,
+                          color: Color(0xFF4B5563),
                         ),
                       ),
                       const SizedBox(height: 28),
 
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Nom complet',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                       TextFormField(
                         controller: _nameController,
                         decoration: _inputDecoration(
-                          label: 'Nom complet',
-                          icon: Icons.person_outline,
+                          hint: 'Jean Dupont',
+                          icon: Icons.person_outline_rounded,
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
@@ -185,13 +231,25 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
 
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Email',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                       TextFormField(
                         controller: _emailController,
                         decoration: _inputDecoration(
-                          label: 'Email',
-                          icon: Icons.email_outlined,
+                          hint: 'votre@email.com',
+                          icon: Icons.mail_outline_rounded,
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
@@ -203,14 +261,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
 
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Mot de passe',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                       TextFormField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
                         decoration: _inputDecoration(
-                          label: 'Mot de passe',
-                          icon: Icons.lock_outline,
+                          hint: '••••••••',
+                          icon: Icons.lock_outline_rounded,
                           suffixIcon: IconButton(
                             onPressed: () {
                               setState(() {
@@ -219,9 +289,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             },
                             icon: Icon(
                               _obscurePassword
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
-                              color: Colors.blue,
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: const Color(0xFF9CA3AF),
                             ),
                           ),
                         ),
@@ -235,14 +305,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
 
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Confirmer le mot de passe',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                       TextFormField(
                         controller: _confirmPasswordController,
                         obscureText: _obscureConfirmPassword,
                         decoration: _inputDecoration(
-                          label: 'Confirmer le mot de passe',
-                          icon: Icons.lock_reset,
+                          hint: '••••••••',
+                          icon: Icons.lock_outline_rounded,
                           suffixIcon: IconButton(
                             onPressed: () {
                               setState(() {
@@ -252,9 +334,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             },
                             icon: Icon(
                               _obscureConfirmPassword
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
-                              color: Colors.blue,
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: const Color(0xFF9CA3AF),
                             ),
                           ),
                         ),
@@ -268,45 +350,71 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
 
-                      DropdownButtonFormField<UserRole>(
-                        initialValue: _selectedRole,
-                        decoration: _inputDecoration(
-                          label: 'Rôle',
-                          icon: Icons.badge_outlined,
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Type d\'apprenant',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade800,
+                          ),
                         ),
-                        items: const [
-                          DropdownMenuItem<UserRole>(
-                            value: UserRole.boardingStudent,
-                            child: Text('Apprenant logé'),
-                          ),
-                          DropdownMenuItem<UserRole>(
-                            value: UserRole.externalStudent,
-                            child: Text('Apprenant externe'),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          if (value != null) {
-                            setState(() {
-                              _selectedRole = value;
-                            });
-                          }
-                        },
                       ),
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 10),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: const Color(0xFFE5E7EB),
+                          ),
+                        ),
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: DropdownButtonHideUnderline(
+                          child: DropdownButton<UserRole>(
+                            value: _selectedRole,
+                            isExpanded: true,
+                            borderRadius: BorderRadius.circular(16),
+                            icon: const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: Color(0xFF6B7280),
+                            ),
+                            items: [
+                              DropdownMenuItem<UserRole>(
+                                value: UserRole.externalStudent,
+                                child: Text(_roleLabel(UserRole.externalStudent)),
+                              ),
+                              DropdownMenuItem<UserRole>(
+                                value: UserRole.boardingStudent,
+                                child: Text(_roleLabel(UserRole.boardingStudent)),
+                              ),
+                            ],
+                            onChanged: (value) {
+                              if (value != null) {
+                                setState(() {
+                                  _selectedRole = value;
+                                });
+                              }
+                            },
+                          ),
+                        ),
+                      ),
 
+                      const SizedBox(height: 28),
                       SizedBox(
                         width: double.infinity,
-                        height: 52,
+                        height: 56,
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _register,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
+                            backgroundColor: const Color(0xFF2563EB),
                             foregroundColor: Colors.white,
-                            elevation: 4,
+                            elevation: 0,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(18),
                             ),
                           ),
                           child: _isLoading
@@ -315,23 +423,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                   height: 24,
                                   child: CircularProgressIndicator(
                                     color: Colors.white,
-                                    strokeWidth: 3,
+                                    strokeWidth: 2.8,
                                   ),
                                 )
                               : const Text(
-                                  'S’inscrire',
+                                  'S\'inscrire',
                                   style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 22),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const LoginScreen(),
+                            ),
+                          );
+                        },
+                        child: const Text(
+                          'Déjà un compte ? Se connecter',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Color(0xFF2563EB),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),

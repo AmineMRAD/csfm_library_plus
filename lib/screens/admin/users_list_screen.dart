@@ -1,7 +1,11 @@
 // ignore_for_file: deprecated_member_use
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
+import '../../models/user_model.dart';
+import '../../services/auth_service.dart';
 
 class UsersListScreen extends StatefulWidget {
   const UsersListScreen({super.key});
@@ -38,9 +42,9 @@ class _UsersListScreenState extends State<UsersListScreen> {
       case 'Admin':
         return role == 'admin';
       case 'Logés':
-        return role == 'boardingStudent' || role == 'Apprenant logé';
+        return role == 'boardingStudent';
       case 'Externes':
-        return role == 'externalStudent' || role == 'Apprenant externe';
+        return role == 'externalStudent';
       default:
         return true;
     }
@@ -55,8 +59,142 @@ class _UsersListScreenState extends State<UsersListScreen> {
     return name.contains(query) || email.contains(query);
   }
 
+  Future<void> _showAddUserSheet() async {
+    final result = await showModalBottomSheet<_AddUserSheetResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _AddUserBottomSheet(),
+    );
+
+    if (!mounted || result == null) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      if (result.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Utilisateur créé avec succès'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (result.message != null && result.message!.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.message!),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    });
+  }
+
+  Future<void> _showEditUserSheet(Map<String, dynamic> user) async {
+    final result = await showModalBottomSheet<_EditUserSheetResult>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _EditUserBottomSheet(user: user),
+    );
+
+    if (!mounted || result == null) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+
+      if (result.success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Utilisateur modifié avec succès'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      } else if (result.message != null && result.message!.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(result.message!),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    });
+  }
+
+  Future<void> _confirmSafeDelete(Map<String, dynamic> user) async {
+    final userId = (user['uid'] ?? user['_id'] ?? '').toString();
+    final userName = (user['name'] ?? 'Utilisateur').toString();
+
+    if (userId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Identifiant utilisateur introuvable'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Supprimer l’utilisateur'),
+          content: Text(
+            'Voulez-vous vraiment supprimer "$userName" ?\n\n'
+            'Cette action sera un safe delete: le compte sera masqué de la liste, '
+            'sans suppression définitive de Firebase Auth.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Annuler'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Supprimer'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirm != true) return;
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({
+        'isDeleted': true,
+        'deletedAt': DateTime.now().toIso8601String(),
+      });
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Utilisateur supprimé de la liste'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur lors de la suppression: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final currentUid = FirebaseAuth.instance.currentUser?.uid;
+
     return Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: const Color(0xFFEAF2FB),
@@ -70,24 +208,24 @@ class _UsersListScreenState extends State<UsersListScreen> {
 
             final docs = snapshot.data?.docs ?? [];
 
-            final allUsers = docs.map((doc) {
-              final data = doc.data();
-              return {
-                ...data,
-                '_id': doc.id,
-              };
-            }).toList();
+            final allUsers = docs
+                .map((doc) {
+                  final data = doc.data();
+                  return {
+                    ...data,
+                    '_id': doc.id,
+                  };
+                })
+                .where((user) => user['uid'] != currentUid)
+                .where((user) => user['isDeleted'] != true)
+                .toList();
 
             final total = allUsers.length;
             final admins = allUsers.where((u) => u['role'] == 'admin').length;
-            final loges = allUsers.where((u) {
-              final role = (u['role'] ?? '').toString();
-              return role == 'boardingStudent' || role == 'Apprenant logé';
-            }).length;
-            final externes = allUsers.where((u) {
-              final role = (u['role'] ?? '').toString();
-              return role == 'externalStudent' || role == 'Apprenant externe';
-            }).length;
+            final loges =
+                allUsers.where((u) => u['role'] == 'boardingStudent').length;
+            final externes =
+                allUsers.where((u) => u['role'] == 'externalStudent').length;
 
             return CustomScrollView(
               keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
@@ -129,7 +267,8 @@ class _UsersListScreenState extends State<UsersListScreen> {
                           return SliverFillRemaining(
                             hasScrollBody: false,
                             child: Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 24),
                               child: Center(
                                 child: Container(
                                   padding: const EdgeInsets.all(24),
@@ -423,7 +562,7 @@ class _UsersListScreenState extends State<UsersListScreen> {
       width: double.infinity,
       height: 52,
       child: ElevatedButton.icon(
-        onPressed: () {},
+        onPressed: _showAddUserSheet,
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text(
           'Ajouter un utilisateur',
@@ -449,11 +588,6 @@ class _UsersListScreenState extends State<UsersListScreen> {
     final String email = (user['email'] ?? '').toString();
     final String roleRaw = (user['role'] ?? '').toString();
     final dynamic createdAtRaw = user['createdAt'];
-    final bool isActive =
-        user['isActive'] is bool ? user['isActive'] as bool : true;
-
-    final int empruntsCount = _extractLoanCount(user);
-    final String createdAtText = _formatCreatedAt(createdAtRaw);
 
     String roleLabel;
     Color roleChipBg;
@@ -465,7 +599,7 @@ class _UsersListScreenState extends State<UsersListScreen> {
       roleChipBg = const Color(0xFFF0E2FF);
       accentColor = const Color(0xFF8B2CF5);
       roleIcon = Icons.shield_outlined;
-    } else if (roleRaw == 'boardingStudent' || roleRaw == 'Apprenant logé') {
+    } else if (roleRaw == 'boardingStudent') {
       roleLabel = 'Apprenant logé';
       roleChipBg = const Color(0xFFDCE9FF);
       accentColor = const Color(0xFF245BFF);
@@ -511,42 +645,13 @@ class _UsersListScreenState extends State<UsersListScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        name,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF111827),
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isActive
-                            ? const Color(0xFFDDF6E5)
-                            : const Color(0xFFF3F4F6),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        isActive ? 'Actif' : 'Inactif',
-                        style: TextStyle(
-                          color: isActive
-                              ? const Color(0xFF0E8A43)
-                              : const Color(0xFF6B7280),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ],
+                Text(
+                  name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF111827),
+                  ),
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -581,19 +686,11 @@ class _UsersListScreenState extends State<UsersListScreen> {
                         ),
                       ),
                     ),
-                    Text(
-                      '$empruntsCount ${empruntsCount > 1 ? 'emprunts' : 'emprunt'}',
-                      style: const TextStyle(
-                        color: Color(0xFF4B5563),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Membre depuis $createdAtText',
+                  'Membre depuis ${_formatCreatedAt(createdAtRaw)}',
                   style: const TextStyle(
                     color: Color(0xFF9CA3AF),
                     fontSize: 12,
@@ -609,7 +706,7 @@ class _UsersListScreenState extends State<UsersListScreen> {
                         icon: Icons.edit_outlined,
                         bg: const Color(0xFFEAF1FF),
                         fg: const Color(0xFF245BFF),
-                        onTap: () {},
+                        onTap: () => _showEditUserSheet(user),
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -619,7 +716,7 @@ class _UsersListScreenState extends State<UsersListScreen> {
                         icon: Icons.delete_outline,
                         bg: const Color(0xFFFFEEEE),
                         fg: const Color(0xFFFF2B2B),
-                        onTap: () {},
+                        onTap: () => _confirmSafeDelete(user),
                       ),
                     ),
                   ],
@@ -632,25 +729,6 @@ class _UsersListScreenState extends State<UsersListScreen> {
     );
   }
 
-  int _extractLoanCount(Map<String, dynamic> user) {
-    final possibleKeys = [
-      'empruntsCount',
-      'borrowCount',
-      'loanCount',
-      'emprunts',
-    ];
-
-    for (final key in possibleKeys) {
-      final value = user[key];
-
-      if (value is int) return value;
-      if (value is String) return int.tryParse(value) ?? 0;
-      if (value is List) return value.length;
-    }
-
-    return 0;
-  }
-
   String _formatCreatedAt(dynamic createdAtRaw) {
     if (createdAtRaw == null) return '--';
 
@@ -661,12 +739,7 @@ class _UsersListScreenState extends State<UsersListScreen> {
     } else if (createdAtRaw is DateTime) {
       date = createdAtRaw;
     } else if (createdAtRaw is String) {
-      final parsed = DateTime.tryParse(createdAtRaw);
-      if (parsed != null) {
-        date = parsed;
-      } else {
-        return createdAtRaw;
-      }
+      date = DateTime.tryParse(createdAtRaw);
     }
 
     if (date == null) return '--';
@@ -718,6 +791,660 @@ class _UsersListScreenState extends State<UsersListScreen> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AddUserSheetResult {
+  final bool success;
+  final String? message;
+
+  const _AddUserSheetResult({
+    required this.success,
+    this.message,
+  });
+}
+
+class _AddUserBottomSheet extends StatefulWidget {
+  const _AddUserBottomSheet();
+
+  @override
+  State<_AddUserBottomSheet> createState() => _AddUserBottomSheetState();
+}
+
+class _AddUserBottomSheetState extends State<_AddUserBottomSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _authService = AuthService();
+
+  final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  UserRole _selectedRole = UserRole.externalStudent;
+  bool _isLoading = false;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final error = await _authService.createUserByAdmin(
+      name: _nameController.text.trim(),
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
+      role: _selectedRole,
+      isActive: true,
+    );
+
+    if (!mounted) return;
+
+    if (error == null) {
+      Navigator.of(context).pop(
+        const _AddUserSheetResult(success: true),
+      );
+    } else {
+      setState(() {
+        _isLoading = false;
+      });
+
+      Navigator.of(context).pop(
+        _AddUserSheetResult(
+          success: false,
+          message: error,
+        ),
+      );
+    }
+  }
+
+  InputDecoration _inputDecoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
+      filled: true,
+      fillColor: const Color(0xFFF3F4F6),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 16,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.red),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.red),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(
+          color: Color(0xFFB12CFF),
+          width: 1.4,
+        ),
+      ),
+    );
+  }
+
+  Widget _label(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: Color(0xFF374151),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 200),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(26),
+          ),
+        ),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Nouvel utilisateur',
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF111827),
+                          ),
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () => Navigator.pop(context),
+                        borderRadius: BorderRadius.circular(30),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF3F4F6),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            color: Color(0xFF4B5563),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 22),
+
+                  _label('Nom complet'),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _nameController,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Veuillez saisir le nom complet';
+                      }
+                      return null;
+                    },
+                    decoration: _inputDecoration('Ex: Amine Mrad'),
+                  ),
+
+                  const SizedBox(height: 18),
+                  _label('Email'),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _emailController,
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Veuillez saisir un email';
+                      }
+                      if (!value.contains('@')) {
+                        return 'Email invalide';
+                      }
+                      return null;
+                    },
+                    decoration: _inputDecoration('Ex: amine@csfm.tn'),
+                  ),
+
+                  const SizedBox(height: 18),
+                  _label('Rôle'),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F4F6),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<UserRole>(
+                        value: _selectedRole,
+                        isExpanded: true,
+                        borderRadius: BorderRadius.circular(16),
+                        items: const [
+                          DropdownMenuItem(
+                            value: UserRole.externalStudent,
+                            child: Text('Apprenant externe'),
+                          ),
+                          DropdownMenuItem(
+                            value: UserRole.boardingStudent,
+                            child: Text('Apprenant logé'),
+                          ),
+                          DropdownMenuItem(
+                            value: UserRole.admin,
+                            child: Text('Administrateur'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _selectedRole = value;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 18),
+                  _label('Mot de passe'),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _passwordController,
+                    obscureText: true,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Veuillez saisir un mot de passe';
+                      }
+                      if (value.trim().length < 6) {
+                        return 'Minimum 6 caractères';
+                      }
+                      return null;
+                    },
+                    decoration: _inputDecoration('Mot de passe initial'),
+                  ),
+
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: 52,
+                          child: ElevatedButton(
+                            onPressed:
+                                _isLoading ? null : () => Navigator.pop(context),
+                            style: ElevatedButton.styleFrom(
+                              elevation: 0,
+                              backgroundColor: const Color(0xFFF3F4F6),
+                              foregroundColor: const Color(0xFF4B5563),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: const Text(
+                              'Annuler',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: SizedBox(
+                          height: 52,
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _submit,
+                            style: ElevatedButton.styleFrom(
+                              elevation: 0,
+                              backgroundColor: const Color(0xFF9C1CFF),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Créer',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _EditUserSheetResult {
+  final bool success;
+  final String? message;
+
+  const _EditUserSheetResult({
+    required this.success,
+    this.message,
+  });
+}
+
+class _EditUserBottomSheet extends StatefulWidget {
+  final Map<String, dynamic> user;
+
+  const _EditUserBottomSheet({required this.user});
+
+  @override
+  State<_EditUserBottomSheet> createState() => _EditUserBottomSheetState();
+}
+
+class _EditUserBottomSheetState extends State<_EditUserBottomSheet> {
+  final _formKey = GlobalKey<FormState>();
+
+  late final TextEditingController _nameController;
+  late UserRole _selectedRole;
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _nameController = TextEditingController(
+      text: (widget.user['name'] ?? '').toString(),
+    );
+
+    final roleRaw = (widget.user['role'] ?? '').toString();
+    _selectedRole = _mapRole(roleRaw);
+  }
+
+  UserRole _mapRole(String raw) {
+    switch (raw) {
+      case 'admin':
+        return UserRole.admin;
+      case 'boardingStudent':
+        return UserRole.boardingStudent;
+      default:
+        return UserRole.externalStudent;
+    }
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final userId = (widget.user['uid'] ?? widget.user['_id'] ?? '').toString();
+    if (userId.isEmpty) {
+      Navigator.of(context).pop(
+        const _EditUserSheetResult(
+          success: false,
+          message: 'Identifiant utilisateur introuvable',
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await FirebaseFirestore.instance.collection('users').doc(userId).update({
+        'name': _nameController.text.trim(),
+        'role': _selectedRole.name,
+        'updatedAt': DateTime.now().toIso8601String(),
+      });
+
+      if (!mounted) return;
+
+      Navigator.of(context).pop(
+        const _EditUserSheetResult(success: true),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      Navigator.of(context).pop(
+        _EditUserSheetResult(
+          success: false,
+          message: 'Erreur lors de la modification: $e',
+        ),
+      );
+    }
+  }
+
+  InputDecoration _inputDecoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      hintStyle: const TextStyle(color: Color(0xFF9CA3AF)),
+      filled: true,
+      fillColor: const Color(0xFFF3F4F6),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: 16,
+        vertical: 16,
+      ),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.red),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.red),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(
+          color: Color(0xFFB12CFF),
+          width: 1.4,
+        ),
+      ),
+    );
+  }
+
+  Widget _label(String text) {
+    return Text(
+      text,
+      style: const TextStyle(
+        fontSize: 14,
+        fontWeight: FontWeight.w600,
+        color: Color(0xFF374151),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 200),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(26),
+          ),
+        ),
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Expanded(
+                        child: Text(
+                          'Modifier utilisateur',
+                          style: TextStyle(
+                            fontSize: 26,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF111827),
+                          ),
+                        ),
+                      ),
+                      InkWell(
+                        onTap: () => Navigator.pop(context),
+                        borderRadius: BorderRadius.circular(30),
+                        child: Container(
+                          width: 38,
+                          height: 38,
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF3F4F6),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Icon(
+                            Icons.close,
+                            color: Color(0xFF4B5563),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 22),
+
+                  _label('Nom complet'),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _nameController,
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Veuillez saisir le nom complet';
+                      }
+                      return null;
+                    },
+                    decoration: _inputDecoration('Ex: Amine Mrad'),
+                  ),
+
+                  const SizedBox(height: 18),
+                  _label('Rôle'),
+                  const SizedBox(height: 8),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF3F4F6),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 14),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<UserRole>(
+                        value: _selectedRole,
+                        isExpanded: true,
+                        borderRadius: BorderRadius.circular(16),
+                        items: const [
+                          DropdownMenuItem(
+                            value: UserRole.externalStudent,
+                            child: Text('Apprenant externe'),
+                          ),
+                          DropdownMenuItem(
+                            value: UserRole.boardingStudent,
+                            child: Text('Apprenant logé'),
+                          ),
+                          DropdownMenuItem(
+                            value: UserRole.admin,
+                            child: Text('Administrateur'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _selectedRole = value;
+                            });
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: SizedBox(
+                          height: 52,
+                          child: ElevatedButton(
+                            onPressed:
+                                _isLoading ? null : () => Navigator.pop(context),
+                            style: ElevatedButton.styleFrom(
+                              elevation: 0,
+                              backgroundColor: const Color(0xFFF3F4F6),
+                              foregroundColor: const Color(0xFF4B5563),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: const Text(
+                              'Annuler',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w700,
+                                fontSize: 15,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: SizedBox(
+                          height: 52,
+                          child: ElevatedButton(
+                            onPressed: _isLoading ? null : _submit,
+                            style: ElevatedButton.styleFrom(
+                              elevation: 0,
+                              backgroundColor: const Color(0xFF9C1CFF),
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16),
+                              ),
+                            ),
+                            child: _isLoading
+                                ? const SizedBox(
+                                    width: 22,
+                                    height: 22,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2.5,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Text(
+                                    'Enregistrer',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                      fontSize: 15,
+                                    ),
+                                  ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
     );

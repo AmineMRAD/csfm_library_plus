@@ -1,3 +1,5 @@
+// ignore_for_file: deprecated_member_use
+
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
@@ -54,7 +56,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           );
 
-          /// 🔥 ADMIN → AdminScreen
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -69,7 +70,6 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           );
 
-          /// 👤 USER → HomeScreen
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -95,28 +95,47 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   InputDecoration _inputDecoration({
-    required String label,
+    required String hint,
     required IconData icon,
     Widget? suffixIcon,
   }) {
     return InputDecoration(
-      labelText: label,
-      prefixIcon: Icon(icon, color: Colors.blue),
+      hintText: hint,
+      hintStyle: const TextStyle(
+        color: Color(0xFF9CA3AF),
+        fontSize: 16,
+      ),
+      prefixIcon: Icon(
+        icon,
+        color: const Color(0xFF9CA3AF),
+        size: 22,
+      ),
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+      fillColor: const Color(0xFFF8FAFC),
+      contentPadding: const EdgeInsets.symmetric(
+        vertical: 18,
+        horizontal: 16,
+      ),
       border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide.none,
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: BorderSide(color: Colors.blue.shade100),
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.blue, width: 2),
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Color(0xFF2563EB), width: 1.6),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Colors.red),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: Colors.red),
       ),
     );
   }
@@ -131,75 +150,87 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F8FF),
-      appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.blue,
-        title: const Text(
-          'Connexion',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        centerTitle: true,
-      ),
-      body: Center(
+      backgroundColor: const Color(0xFFEAF2FB),
+      body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 450),
-            child: Card(
-              elevation: 8,
-              color: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(24),
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => Navigator.pop(context),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF2563EB),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 8,
+                    ),
+                  ),
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 16),
+                  label: const Text(
+                    'Retour',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
               ),
-              child: Padding(
-                padding: const EdgeInsets.all(24),
+              const SizedBox(height: 8),
+              Container(
+                width: double.infinity,
+                constraints: const BoxConstraints(maxWidth: 430),
+                padding: const EdgeInsets.fromLTRB(24, 28, 24, 24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(28),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.07),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
                 child: Form(
                   key: _formKey,
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.shade50,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(
-                          Icons.lock_open_rounded,
-                          size: 40,
-                          color: Colors.blue,
-                        ),
-                      ),
-                      const SizedBox(height: 16),
                       const Text(
                         'Se connecter',
+                        textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 26,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.blue,
+                          fontSize: 30,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1E40AF),
                         ),
                       ),
                       const SizedBox(height: 8),
-                      Text(
-                        'Connectez-vous pour accéder à votre espace',
+                      const Text(
+                        'Accédez à votre compte',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey.shade600,
+                          fontSize: 17,
+                          color: Color(0xFF4B5563),
                         ),
                       ),
                       const SizedBox(height: 28),
 
-                      /// EMAIL
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Email',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                       TextFormField(
                         controller: _emailController,
                         decoration: _inputDecoration(
-                          label: 'Email',
-                          icon: Icons.email_outlined,
+                          hint: 'votre@email.com',
+                          icon: Icons.mail_outline_rounded,
                         ),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
@@ -211,15 +242,26 @@ class _LoginScreenState extends State<LoginScreen> {
                           return null;
                         },
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 20),
 
-                      /// PASSWORD
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          'Mot de passe',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
                       TextFormField(
                         controller: _passwordController,
                         obscureText: _obscurePassword,
                         decoration: _inputDecoration(
-                          label: 'Mot de passe',
-                          icon: Icons.lock_outline,
+                          hint: '••••••••',
+                          icon: Icons.lock_outline_rounded,
                           suffixIcon: IconButton(
                             onPressed: () {
                               setState(() {
@@ -228,9 +270,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                             icon: Icon(
                               _obscurePassword
-                                  ? Icons.visibility_off
-                                  : Icons.visibility,
-                              color: Colors.blue,
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: const Color(0xFF9CA3AF),
                             ),
                           ),
                         ),
@@ -245,88 +287,94 @@ class _LoginScreenState extends State<LoginScreen> {
                         },
                       ),
 
-                      const SizedBox(height: 10),
-
-                      /// REMEMBER ME
+                      const SizedBox(height: 18),
                       Row(
                         children: [
-                          Checkbox(
-                            value: _rememberMe,
-                            activeColor: Colors.blue,
-                            onChanged: (value) {
-                              setState(() {
-                                _rememberMe = value ?? false;
-                              });
-                            },
+                          SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: Checkbox(
+                              value: _rememberMe,
+                              activeColor: const Color(0xFF2563EB),
+                              side: const BorderSide(
+                                color: Color(0xFF6B7280),
+                                width: 1.4,
+                              ),
+                              onChanged: (value) {
+                                setState(() {
+                                  _rememberMe = value ?? false;
+                                });
+                              },
+                            ),
                           ),
-                          const Text('Se souvenir de moi'),
+                          const SizedBox(width: 12),
+                          const Text(
+                            'Se souvenir de moi',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Color(0xFF111827),
+                            ),
+                          ),
                         ],
                       ),
 
-                      const SizedBox(height: 12),
-
-                      /// BUTTON
+                      const SizedBox(height: 24),
                       SizedBox(
                         width: double.infinity,
-                        height: 52,
+                        height: 56,
                         child: ElevatedButton(
                           onPressed: _isLoading ? null : _login,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
+                            backgroundColor: const Color(0xFF2563EB),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(18),
                             ),
                           ),
                           child: _isLoading
-                              ? const CircularProgressIndicator(
-                                  color: Colors.white)
+                              ? const SizedBox(
+                                  width: 24,
+                                  height: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.8,
+                                    color: Colors.white,
+                                  ),
+                                )
                               : const Text(
                                   'Se connecter',
                                   style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
+                                    fontSize: 17,
+                                    fontWeight: FontWeight.w700,
                                   ),
                                 ),
                         ),
                       ),
 
-                      const SizedBox(height: 20),
-
-                      /// REGISTER LINK
-                      Wrap(
-                        alignment: WrapAlignment.center,
-                        children: [
-                          Text(
-                            'Vous n’avez pas encore de compte ? ',
-                            style: TextStyle(
-                              color: Colors.grey.shade700,
+                      const SizedBox(height: 22),
+                      GestureDetector(
+                        onTap: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => const RegisterScreen(),
                             ),
+                          );
+                        },
+                        child: const Text(
+                          'Créer un compte',
+                          style: TextStyle(
+                            color: Color(0xFF2563EB),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                           ),
-                          GestureDetector(
-                            onTap: () {
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const RegisterScreen(),
-                                ),
-                              );
-                            },
-                            child: const Text(
-                              'Créez-en un',
-                              style: TextStyle(
-                                color: Colors.blue,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
                     ],
                   ),
                 ),
               ),
-            ),
+            ],
           ),
         ),
       ),

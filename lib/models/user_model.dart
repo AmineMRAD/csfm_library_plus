@@ -5,6 +5,7 @@ class UserModel {
   final String name;
   final String email;
   final UserRole role;
+  final bool isActive;
   final DateTime createdAt;
 
   UserModel({
@@ -12,28 +13,32 @@ class UserModel {
     required this.name,
     required this.email,
     required this.role,
+    required this.isActive,
     required this.createdAt,
   });
 
-  /// Convertir vers Firestore
   Map<String, dynamic> toMap() {
     return {
       'uid': uid,
       'name': name,
       'email': email,
-      'role': role.name, // important
+      'role': role.name,
+      'isActive': isActive,
       'createdAt': createdAt.toIso8601String(),
     };
   }
 
-  /// Convertir depuis Firestore
   factory UserModel.fromMap(Map<String, dynamic> map) {
     return UserModel(
-      uid: map['uid'],
-      name: map['name'],
-      email: map['email'],
-      role: UserRole.values.firstWhere((e) => e.name == map['role']),
-      createdAt: DateTime.parse(map['createdAt']),
+      uid: map['uid'] ?? '',
+      name: map['name'] ?? '',
+      email: map['email'] ?? '',
+      role: UserRole.values.firstWhere(
+        (e) => e.name == map['role'],
+        orElse: () => UserRole.externalStudent,
+      ),
+      isActive: map['isActive'] ?? true,
+      createdAt: DateTime.tryParse(map['createdAt'] ?? '') ?? DateTime.now(),
     );
   }
 }
