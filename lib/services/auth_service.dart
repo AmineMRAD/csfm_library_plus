@@ -20,10 +20,9 @@ class AuthService {
     try {
       final normalizedEmail = email.trim().toLowerCase();
 
-      final UserRole finalRole =
-          normalizedEmail == adminEmail.toLowerCase()
-              ? UserRole.admin
-              : role;
+      final UserRole finalRole = normalizedEmail == adminEmail.toLowerCase()
+          ? UserRole.admin
+          : role;
 
       UserCredential credential = await _auth.createUserWithEmailAndPassword(
         email: normalizedEmail,
@@ -35,7 +34,7 @@ class AuthService {
       if (user != null) {
         UserModel newUser = UserModel(
           uid: user.uid,
-          name: name,
+          name: name.trim(),
           email: normalizedEmail,
           role: finalRole,
           isActive: true,
@@ -43,6 +42,12 @@ class AuthService {
         );
 
         await _firestore.collection('users').doc(user.uid).set(newUser.toMap());
+
+        if (finalRole != UserRole.admin) {
+          await user.sendEmailVerification();
+        }
+
+        await _auth.signOut();
       }
 
       return user;
@@ -62,17 +67,43 @@ class AuthService {
         password: password,
       );
 
-      return credential.user;
+      await credential.user?.reload();
+
+      return _auth.currentUser;
     } catch (e) {
       debugPrint('Erreur login: ${e.toString()}');
       return null;
     }
   }
 
+  Future<void> logout() async {
+    await _auth.signOut();
+  }
+
+  Future<String?> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(
+        email: email.trim().toLowerCase(),
+      );
+      return null;
+    } on FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'invalid-email':
+          return 'Email invalide';
+        case 'user-not-found':
+          return 'Aucun compte trouvé avec cet email';
+        default:
+          return e.message ?? 'Erreur lors de l’envoi de l’email';
+      }
+    } catch (e) {
+      debugPrint('Erreur reset password: $e');
+      return 'Une erreur est survenue';
+    }
+  }
+
   Future<UserModel?> getUserData(String uid) async {
     try {
-      DocumentSnapshot doc =
-          await _firestore.collection('users').doc(uid).get();
+      DocumentSnapshot doc = await _firestore.collection('users').doc(uid).get();
 
       if (doc.exists) {
         return UserModel.fromMap(doc.data() as Map<String, dynamic>);
@@ -96,10 +127,9 @@ class AuthService {
     try {
       final normalizedEmail = email.trim().toLowerCase();
 
-      final UserRole finalRole =
-          normalizedEmail == adminEmail.toLowerCase()
-              ? UserRole.admin
-              : role;
+      final UserRole finalRole = normalizedEmail == adminEmail.toLowerCase()
+          ? UserRole.admin
+          : role;
 
       final secondaryAppName =
           'admin-create-user-${DateTime.now().millisecondsSinceEpoch}';
@@ -150,7 +180,7 @@ class AuthService {
         case 'invalid-email':
           return 'Email invalide';
         case 'weak-password':
-          return 'Mot de passe trop faible (minimum 6 caractères)';
+          return 'Mot de passe trop faible';
         default:
           return e.message ?? 'Erreur lors de la création du compte';
       }

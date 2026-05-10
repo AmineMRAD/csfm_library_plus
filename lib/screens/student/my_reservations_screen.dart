@@ -18,17 +18,14 @@ class MyReservationsScreen extends StatelessWidget {
           stream: currentUid == null
               ? null
               : FirebaseFirestore.instance
-                  .collection('reservations')
-                  .where('userId', isEqualTo: currentUid)
-                  .snapshots(),
+                    .collection('reservations')
+                    .where('userId', isEqualTo: currentUid)
+                    .snapshots(),
           builder: (context, reservationSnapshot) {
             final reservationDocs = reservationSnapshot.data?.docs ?? [];
 
             final reservations = reservationDocs
-                .map((doc) => {
-                      ...doc.data(),
-                      '_id': doc.id,
-                    })
+                .map((doc) => {...doc.data(), '_id': doc.id})
                 .toList();
 
             reservations.sort((a, b) {
@@ -208,17 +205,30 @@ class MyReservationsScreen extends StatelessWidget {
     );
   }
 
-  Widget _reservationCard(BuildContext context, Map<String, dynamic> reservation) {
+  Widget _reservationCard(
+    BuildContext context,
+    Map<String, dynamic> reservation,
+  ) {
     final documentId = (reservation['documentId'] ?? '').toString();
-    final documentTitle = (reservation['documentTitle'] ?? 'Document').toString();
+    final documentTitle = (reservation['documentTitle'] ?? 'Document')
+        .toString();
     final status = _normalizeStatus(reservation['status']);
-    final reservedAt = _extractDate(reservation['createdAt'], reservation['date']);
-    final reservationId = (reservation['_id'] ?? reservation['id'] ?? '').toString();
+    final reservedAt = _extractDate(
+      reservation['createdAt'],
+      reservation['date'],
+    );
+    final reservationId = (reservation['_id'] ?? reservation['id'] ?? '')
+        .toString();
+    final pickupConfirmed = reservation['pickupConfirmed'] == true;
+    final pickupDeadline = _getPickupDeadline(reservation, reservedAt);
 
     return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
       future: documentId.isEmpty
           ? null
-          : FirebaseFirestore.instance.collection('documents').doc(documentId).get(),
+          : FirebaseFirestore.instance
+                .collection('documents')
+                .doc(documentId)
+                .get(),
       builder: (context, documentSnapshot) {
         final documentData = documentSnapshot.data?.data();
         final imagePath = (documentData?['imagePath'] ?? '').toString();
@@ -341,24 +351,32 @@ class MyReservationsScreen extends StatelessWidget {
                               final queueDocs = queueSnapshot.data?.docs ?? [];
 
                               final pendingForSameDocument = queueDocs
-                                  .map((doc) => {
-                                        ...doc.data(),
-                                        '_id': doc.id,
-                                      })
-                                  .where((item) =>
-                                      _normalizeStatus(item['status']) == 'pending')
+                                  .map((doc) => {...doc.data(), '_id': doc.id})
+                                  .where(
+                                    (item) =>
+                                        _normalizeStatus(item['status']) ==
+                                        'pending',
+                                  )
                                   .toList();
 
                               pendingForSameDocument.sort((a, b) {
-                                final dateA =
-                                    _extractDate(a['createdAt'], a['date']);
-                                final dateB =
-                                    _extractDate(b['createdAt'], b['date']);
+                                final dateA = _extractDate(
+                                  a['createdAt'],
+                                  a['date'],
+                                );
+                                final dateB = _extractDate(
+                                  b['createdAt'],
+                                  b['date'],
+                                );
                                 return dateA.compareTo(dateB);
                               });
 
                               int position = 0;
-                              for (int i = 0; i < pendingForSameDocument.length; i++) {
+                              for (
+                                int i = 0;
+                                i < pendingForSameDocument.length;
+                                i++
+                              ) {
                                 final itemId =
                                     (pendingForSameDocument[i]['_id'] ?? '')
                                         .toString();
@@ -432,20 +450,24 @@ class MyReservationsScreen extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: const Color(0xFF86EFAC)),
                   ),
-                  child: const Column(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
                           Icon(
-                            Icons.event_available_outlined,
-                            color: Color(0xFF16A34A),
+                            pickupConfirmed
+                                ? Icons.check_circle_outline
+                                : Icons.event_available_outlined,
+                            color: const Color(0xFF16A34A),
                             size: 18,
                           ),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           Text(
-                            'Document disponible!',
-                            style: TextStyle(
+                            pickupConfirmed
+                                ? 'Retrait confirmé'
+                                : 'Document disponible!',
+                            style: const TextStyle(
                               color: Color(0xFF16A34A),
                               fontWeight: FontWeight.w700,
                               fontSize: 14,
@@ -453,10 +475,12 @@ class MyReservationsScreen extends StatelessWidget {
                           ),
                         ],
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
-                        'À retirer avant le 2024-04-05',
-                        style: TextStyle(
+                        pickupConfirmed
+                            ? 'Le document a été retiré avec succès.'
+                            : 'À retirer avant le ${_formatDate(pickupDeadline)}',
+                        style: const TextStyle(
                           fontSize: 13,
                           color: Color(0xFF15803D),
                         ),
@@ -464,29 +488,31 @@ class MyReservationsScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2563EB),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
+                if (!pickupConfirmed) ...[
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: () => _confirmPickup(context, reservationId),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF2563EB),
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
                       ),
-                    ),
-                    child: const Text(
-                      'Confirmer le retrait',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
+                      child: const Text(
+                        'Confirmer le retrait',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
                   ),
-                ),
+                ],
               ],
             ],
           ),
@@ -495,7 +521,62 @@ class MyReservationsScreen extends StatelessWidget {
     );
   }
 
-  Future<void> _cancelReservation(BuildContext context, String reservationId) async {
+  DateTime _getPickupDeadline(
+    Map<String, dynamic> reservation,
+    DateTime reservedAt,
+  ) {
+    final pickupDeadline = reservation['pickupDeadline'];
+
+    if (pickupDeadline is Timestamp) return pickupDeadline.toDate();
+    if (pickupDeadline is DateTime) return pickupDeadline;
+
+    if (pickupDeadline is String) {
+      final parsed = DateTime.tryParse(pickupDeadline);
+      if (parsed != null) return parsed;
+    }
+
+    return reservedAt.add(const Duration(days: 3));
+  }
+
+  Future<void> _confirmPickup(
+    BuildContext context,
+    String reservationId,
+  ) async {
+    if (reservationId.isEmpty) return;
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('reservations')
+          .doc(reservationId)
+          .update({
+            'pickupConfirmed': true,
+            'pickupConfirmedAt': DateTime.now().toIso8601String(),
+          });
+
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Retrait confirmé avec succès'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Erreur lors de la confirmation: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<void> _cancelReservation(
+    BuildContext context,
+    String reservationId,
+  ) async {
     if (reservationId.isEmpty) return;
 
     final confirm = await showDialog<bool>(
@@ -621,11 +702,7 @@ class MyReservationsScreen extends StatelessWidget {
       child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.star_rounded,
-            color: Color(0xFFF59E0B),
-            size: 18,
-          ),
+          Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 18),
           SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -677,10 +754,7 @@ class MyReservationsScreen extends StatelessWidget {
           Text(
             'Vos réservations apparaîtront ici.',
             textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 14,
-              color: Color(0xFF6B7280),
-            ),
+            style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
           ),
         ],
       ),

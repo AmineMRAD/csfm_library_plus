@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
-import '../student/student_dashboard_screen.dart';
 import 'login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
@@ -29,6 +28,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
+  bool _isStrongPassword(String password) {
+    final regex = RegExp(
+      r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$',
+    );
+
+    return regex.hasMatch(password);
+  }
+
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -52,7 +59,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (user != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Inscription réussie'),
+          content: Text(
+            'Compte créé avec succès. Vérifiez votre email avant connexion.',
+          ),
           backgroundColor: Colors.blue,
         ),
       );
@@ -60,7 +69,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(
-          builder: (context) => const StudentDashboardScreen(),
+          builder: (context) => const LoginScreen(),
         ),
         (route) => false,
       );
@@ -248,6 +257,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       const SizedBox(height: 10),
                       TextFormField(
                         controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
                         decoration: _inputDecoration(
                           hint: 'votre@email.com',
                           icon: Icons.mail_outline_rounded,
@@ -300,9 +310,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           if (value == null || value.trim().isEmpty) {
                             return 'Veuillez saisir un mot de passe';
                           }
-                          if (value.length < 6) {
-                            return 'Le mot de passe doit contenir au moins 6 caractères';
+
+                          if (!_isStrongPassword(value.trim())) {
+                            return '8 caractères minimum avec majuscule, minuscule, chiffre et caractère spécial';
                           }
+
                           return null;
                         },
                       ),
@@ -386,11 +398,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
                             items: [
                               DropdownMenuItem<UserRole>(
                                 value: UserRole.externalStudent,
-                                child: Text(_roleLabel(UserRole.externalStudent)),
+                                child: Text(
+                                  _roleLabel(UserRole.externalStudent),
+                                ),
                               ),
                               DropdownMenuItem<UserRole>(
                                 value: UserRole.boardingStudent,
-                                child: Text(_roleLabel(UserRole.boardingStudent)),
+                                child: Text(
+                                  _roleLabel(UserRole.boardingStudent),
+                                ),
                               ),
                             ],
                             onChanged: (value) {

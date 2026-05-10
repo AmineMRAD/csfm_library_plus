@@ -1,9 +1,11 @@
-// ignore_for_file: deprecated_member_use
+// ignore_for_file: deprecated_member_use, use_build_context_synchronously
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../models/user_model.dart';
 import '../../services/auth_service.dart';
-//import '../home/home_screen.dart';
 import '../admin/admin_screen.dart';
 import '../student/student_dashboard_screen.dart';
 import 'register_screen.dart';
@@ -27,6 +29,78 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _rememberMe = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadRememberedAccount();
+  }
+
+  Future<void> _loadRememberedAccount() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final savedRememberMe = prefs.getBool('rememberMe') ?? false;
+    final savedEmail = prefs.getString('savedEmail') ?? '';
+    final savedPassword = prefs.getString('savedPassword') ?? '';
+
+    if (!mounted) return;
+
+    setState(() {
+      _rememberMe = savedRememberMe;
+      if (savedRememberMe) {
+        _emailController.text = savedEmail;
+        _passwordController.text = savedPassword;
+      }
+    });
+  }
+
+  Future<void> _saveRememberedAccount() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    if (_rememberMe) {
+      await prefs.setBool('rememberMe', true);
+      await prefs.setString('savedEmail', _emailController.text.trim());
+      await prefs.setString('savedPassword', _passwordController.text.trim());
+    } else {
+      await prefs.setBool('rememberMe', false);
+      await prefs.remove('savedEmail');
+      await prefs.remove('savedPassword');
+    }
+  }
+
+  Future<void> _forgotPassword() async {
+    final email = _emailController.text.trim();
+
+    if (email.isEmpty || !email.contains('@')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Veuillez saisir un email valide'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final error = await _authService.sendPasswordResetEmail(email);
+
+    if (!mounted) return;
+
+    if (error == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Email de réinitialisation envoyé'),
+          backgroundColor: Colors.blue,
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(error),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -39,49 +113,7 @@ class _LoginScreenState extends State<LoginScreen> {
       password: _passwordController.text.trim(),
     );
 
-    if (user != null) {
-      final userData = await _authService.getUserData(user.uid);
-
-      setState(() {
-        _isLoading = false;
-      });
-
-      if (!mounted) return;
-
-      if (userData != null) {
-        if (userData.role == UserRole.admin) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Bienvenue Admin'),
-              backgroundColor: Colors.blue,
-            ),
-          );
-
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AdminScreen(),
-            ),
-            (route) => false,
-          );
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Connexion réussie'),
-              backgroundColor: Colors.blue,
-            ),
-          );
-
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const StudentDashboardScreen(),
-            ),
-            (route) => false,
-          );
-        }
-      }
-    } else {
+    if (user == null) {
       setState(() {
         _isLoading = false;
       });
@@ -93,6 +125,85 @@ class _LoginScreenState extends State<LoginScreen> {
           content: Text('Email ou mot de passe incorrect'),
           backgroundColor: Colors.red,
         ),
+      );
+      return;
+    }
+
+    final userData = await _authService.getUserData(user.uid);
+
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (!mounted) return;
+
+    if (userData == null) {
+      await FirebaseAuth.instance.signOut();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Compte introuvable dans la base de données'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (!userData.isActive) {
+      await FirebaseAuth.instance.signOut();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Votre compte est désactivé'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    if (userData.role != UserRole.admin && !user.emailVerified) {
+      await FirebaseAuth.instance.signOut();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Veuillez vérifier votre email avant de vous connecter'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    await _saveRememberedAccount();
+
+    if (userData.role == UserRole.admin) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Bienvenue Admin'),
+          backgroundColor: Colors.blue,
+        ),
+      );
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const AdminScreen(),
+        ),
+        (route) => false,
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Connexion réussie'),
+          backgroundColor: Colors.blue,
+        ),
+      );
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const StudentDashboardScreen(),
+        ),
+        (route) => false,
       );
     }
   }
@@ -231,6 +342,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 10),
                       TextFormField(
                         controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
                         decoration: _inputDecoration(
                           hint: 'votre@email.com',
                           icon: Icons.mail_outline_rounded,
@@ -283,14 +395,14 @@ class _LoginScreenState extends State<LoginScreen> {
                           if (value == null || value.trim().isEmpty) {
                             return 'Veuillez saisir votre mot de passe';
                           }
-                          if (value.length < 6) {
-                            return 'Minimum 6 caractères';
+                          if (value.length < 8) {
+                            return 'Minimum 8 caractères';
                           }
                           return null;
                         },
                       ),
 
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 16),
                       Row(
                         children: [
                           SizedBox(
@@ -311,11 +423,24 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           const SizedBox(width: 12),
-                          const Text(
-                            'Se souvenir de moi',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Color(0xFF111827),
+                          const Expanded(
+                            child: Text(
+                              'Se souvenir de moi',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Color(0xFF111827),
+                              ),
+                            ),
+                          ),
+                          GestureDetector(
+                            onTap: _forgotPassword,
+                            child: const Text(
+                              'Mot de passe oublié ?',
+                              style: TextStyle(
+                                color: Color(0xFF2563EB),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ],

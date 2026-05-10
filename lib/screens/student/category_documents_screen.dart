@@ -3,14 +3,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'document_details_screen.dart';
 
 class CategoryDocumentsScreen extends StatefulWidget {
   final String category;
 
-  const CategoryDocumentsScreen({
-    super.key,
-    required this.category,
-  });
+  const CategoryDocumentsScreen({super.key, required this.category});
 
   @override
   State<CategoryDocumentsScreen> createState() =>
@@ -152,16 +150,16 @@ class _CategoryDocumentsScreenState extends State<CategoryDocumentsScreen> {
           .collection('reservations')
           .doc(reservationId)
           .set({
-        'id': reservationId,
-        'userId': currentUser.uid,
-        'userName': userName,
-        'role': role,
-        'documentId': documentId,
-        'documentTitle': documentTitle,
-        'date': DateTime.now().toIso8601String(),
-        'status': 'pending',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+            'id': reservationId,
+            'userId': currentUser.uid,
+            'userName': userName,
+            'role': role,
+            'documentId': documentId,
+            'documentTitle': documentTitle,
+            'date': DateTime.now().toIso8601String(),
+            'status': 'pending',
+            'createdAt': FieldValue.serverTimestamp(),
+          });
 
       if (!mounted) return;
       setState(() {
@@ -203,10 +201,7 @@ class _CategoryDocumentsScreenState extends State<CategoryDocumentsScreen> {
             final docs = snapshot.data?.docs ?? [];
 
             final documents = docs
-                .map((doc) => {
-                      ...doc.data(),
-                      '_id': doc.id,
-                    })
+                .map((doc) => {...doc.data(), '_id': doc.id})
                 .where(_matchesSearch)
                 .toList();
 
@@ -329,10 +324,7 @@ class _CategoryDocumentsScreenState extends State<CategoryDocumentsScreen> {
               controller: _searchController,
               decoration: const InputDecoration(
                 hintText: 'Rechercher dans cette catégorie...',
-                hintStyle: TextStyle(
-                  color: Color(0xFF9CA3AF),
-                  fontSize: 15,
-                ),
+                hintStyle: TextStyle(color: Color(0xFF9CA3AF), fontSize: 15),
                 prefixIcon: Icon(
                   Icons.search_rounded,
                   color: Color(0xFF9CA3AF),
@@ -359,108 +351,109 @@ class _CategoryDocumentsScreenState extends State<CategoryDocumentsScreen> {
     final documentId = (data['_id'] ?? data['id'] ?? '').toString();
     final isProcessing = _processingDocumentId == documentId;
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+    return InkWell(
+      borderRadius: BorderRadius.circular(24),
+      onTap: () async {
+        await Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DocumentDetailsScreen(documentData: data),
           ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _documentImage(imagePath),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF111827),
-                    height: 1.25,
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _documentImage(imagePath),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF111827),
+                      height: 1.25,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  author,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF4B5563),
+                  const SizedBox(height: 6),
+                  Text(
+                    author,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF4B5563),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    if (year.isNotEmpty)
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (year.isNotEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 5,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDCE9FF),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            year,
+                            style: const TextStyle(
+                              color: Color(0xFF2563EB),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
                       Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: 10,
                           vertical: 5,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFDCE9FF),
+                          color: available
+                              ? const Color(0xFFDDF6E5)
+                              : const Color(0xFFFFE5E5),
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
-                          year,
-                          style: const TextStyle(
-                            color: Color(0xFF2563EB),
+                          available ? 'Disponible' : 'Emprunté',
+                          style: TextStyle(
+                            color: available
+                                ? const Color(0xFF16A34A)
+                                : Colors.red,
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: available
-                            ? const Color(0xFFDDF6E5)
-                            : const Color(0xFFFFE5E5),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        available ? 'Disponible' : 'Emprunté',
-                        style: TextStyle(
-                          color: available
-                              ? const Color(0xFF16A34A)
-                              : Colors.red,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    if (available)
-                      _outlinedActionButton(
-                        icon: Icons.menu_book_outlined,
-                        label: 'Emprunter maintenant',
-                        color: const Color(0xFF2563EB),
-                        onTap: () {},
-                      ),
-                    _outlinedActionButton(
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: _outlinedActionButton(
                       icon: Icons.bookmark_border_rounded,
                       label: isProcessing
                           ? 'Réservation...'
@@ -468,12 +461,12 @@ class _CategoryDocumentsScreenState extends State<CategoryDocumentsScreen> {
                       color: const Color(0xFF2563EB),
                       onTap: isProcessing ? null : () => _reserveDocument(data),
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -561,11 +554,7 @@ class _CategoryDocumentsScreenState extends State<CategoryDocumentsScreen> {
         child: const Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              Icons.search_off_rounded,
-              size: 42,
-              color: Color(0xFF9CA3AF),
-            ),
+            Icon(Icons.search_off_rounded, size: 42, color: Color(0xFF9CA3AF)),
             SizedBox(height: 12),
             Text(
               'No documents found',
@@ -579,10 +568,7 @@ class _CategoryDocumentsScreenState extends State<CategoryDocumentsScreen> {
             Text(
               'Try another search in this category.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: Color(0xFF6B7280),
-              ),
+              style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
             ),
           ],
         ),

@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 enum UserRole { admin, boardingStudent, externalStudent }
 
 class UserModel {
@@ -29,6 +31,16 @@ class UserModel {
   }
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
+    DateTime parseDate(dynamic value) {
+      if (value is Timestamp) {
+        return value.toDate();
+      }
+      if (value is String) {
+        return DateTime.tryParse(value) ?? DateTime.now();
+      }
+      return DateTime.now();
+    }
+
     return UserModel(
       uid: map['uid'] ?? '',
       name: map['name'] ?? '',
@@ -38,7 +50,7 @@ class UserModel {
         orElse: () => UserRole.externalStudent,
       ),
       isActive: map['isActive'] ?? true,
-      createdAt: DateTime.tryParse(map['createdAt'] ?? '') ?? DateTime.now(),
+      createdAt: parseDate(map['createdAt']),
     );
   }
 }

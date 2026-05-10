@@ -10,6 +10,7 @@ import '../auth/login_screen.dart';
 import 'category_documents_screen.dart';
 import 'my_reservations_screen.dart';
 import 'my_loans_screen.dart';
+import 'loan_history_screen.dart';
 
 class StudentDashboardScreen extends StatelessWidget {
   const StudentDashboardScreen({super.key});
@@ -426,6 +427,12 @@ class StudentDashboardScreen extends StatelessWidget {
                         .where('userId', isEqualTo: currentUid)
                         .snapshots(),
               countReturnedOnly: true,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const LoanHistoryScreen()),
+                );
+              },
             ),
           ),
         ],
@@ -512,76 +519,86 @@ class StudentDashboardScreen extends StatelessWidget {
 
   Widget _buildCategoriesCard(BuildContext context) {
     final categories = [
-      ('Informatique', '342', Icons.computer_outlined),
-      ('Mathématiques', '286', Icons.calculate_outlined),
-      ('Histoire', '234', Icons.history_edu_outlined),
-      ('Sciences', '198', Icons.science_outlined),
-      ('Langues', '172', Icons.language_outlined),
-      ('Magazine', '156', Icons.menu_book_outlined),
-      ('DVD', '90', Icons.album_outlined),
-      ('Supports Pédagogiques', '75', Icons.school_outlined),
+      ('Informatique', Icons.computer_outlined),
+      ('Mathématiques', Icons.calculate_outlined),
+      ('Histoire', Icons.history_edu_outlined),
+      ('Sciences', Icons.science_outlined),
+      ('Langues', Icons.language_outlined),
+      ('Magazine', Icons.menu_book_outlined),
+      ('DVD', Icons.album_outlined),
+      ('Supports Pédagogiques', Icons.school_outlined),
     ];
 
-    Widget categoryCard(String title, String count, IconData icon) {
-      return InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (_) => CategoryDocumentsScreen(category: title),
+    Widget categoryCard(String title, IconData icon) {
+      return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('documents')
+            .where('category', isEqualTo: title)
+            .snapshots(),
+        builder: (context, snapshot) {
+          final count = snapshot.data?.docs.length ?? 0;
+
+          return InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => CategoryDocumentsScreen(category: title),
+                ),
+              );
+            },
+            child: Container(
+              height: 150,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(18),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ],
+                border: Border.all(color: const Color(0xFFF1F5F9)),
+              ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 28, color: const Color(0xFF2563EB)),
+                  const SizedBox(height: 10),
+                  Flexible(
+                    child: Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      softWrap: true,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF111827),
+                        height: 1.25,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '$count',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: Color(0xFF4B5563),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
             ),
           );
         },
-        child: Container(
-          height: 150,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 3),
-              ),
-            ],
-            border: Border.all(color: const Color(0xFFF1F5F9)),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 28, color: const Color(0xFF2563EB)),
-              const SizedBox(height: 10),
-              Flexible(
-                child: Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  softWrap: true,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF111827),
-                    height: 1.25,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                count,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF4B5563),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
       );
     }
 
-    Widget twoColumnGrid(List<(String, String, IconData)> items) {
+    Widget twoColumnGrid(List<(String, IconData)> items) {
       return Column(
         children: [
           for (int i = 0; i < items.length; i += 2)
@@ -589,17 +606,13 @@ class StudentDashboardScreen extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 14),
               child: Row(
                 children: [
-                  Expanded(
-                    child: categoryCard(items[i].$1, items[i].$2, items[i].$3),
-                  ),
+                  Expanded(child: categoryCard(items[i].$1, items[i].$2)),
                   const SizedBox(width: 12),
                   if (i + 1 < items.length)
                     Expanded(
                       child: categoryCard(
                         items[i + 1].$1,
-                        items[i + 1].$2,
-                        items[i + 1].$3,
-                      ),
+                        items[i + 1].$2),
                     )
                   else
                     const Expanded(child: SizedBox()),
