@@ -11,6 +11,10 @@ import 'category_documents_screen.dart';
 import 'my_reservations_screen.dart';
 import 'my_loans_screen.dart';
 import 'loan_history_screen.dart';
+import 'search_documents_screen.dart';
+import 'student_notifications_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'document_details_screen.dart';
 
 class StudentDashboardScreen extends StatelessWidget {
   const StudentDashboardScreen({super.key});
@@ -232,6 +236,62 @@ class StudentDashboardScreen extends StatelessWidget {
     );
   }
 
+  Future<int> _getLastSeenNotificationCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('student_seen_notifications') ?? 0;
+  }
+
+  int _calculateStudentNotificationCount({
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> reservations,
+    required List<QueryDocumentSnapshot<Map<String, dynamic>>> loans,
+  }) {
+    int count = 0;
+
+    for (final doc in reservations) {
+      final data = doc.data();
+      final status = (data['status'] ?? '').toString().toLowerCase();
+
+      if (status == 'approved' || status == 'rejected') {
+        count++;
+      }
+
+      if (data['pickupConfirmed'] == true) {
+        count++;
+      }
+    }
+
+    for (final doc in loans) {
+      final data = doc.data();
+
+      final returned = data['returned'] == true;
+      final returnDate = _parseDate(data['returnDate']);
+
+      if (returned) {
+        count++;
+      } else if (returnDate != null) {
+        final now = DateTime.now();
+        final remainingDays = returnDate.difference(now).inDays;
+
+        if (returnDate.isBefore(now) || remainingDays <= 2) {
+          count++;
+        }
+      }
+    }
+
+    return count;
+  }
+
+  DateTime? _parseDate(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+
+    if (value is String) {
+      return DateTime.tryParse(value);
+    }
+
+    return null;
+  }
+
   Widget _buildHeader(BuildContext context, String? currentUid) {
     return Container(
       width: double.infinity,
@@ -317,20 +377,142 @@ class StudentDashboardScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () => _showStudentProfileSheet(context),
-                    child: Container(
-                      width: 42,
-                      height: 42,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.16),
-                        borderRadius: BorderRadius.circular(14),
+                  Row(
+                    children: [
+                      FutureBuilder<int>(
+                        future: _getLastSeenNotificationCount(),
+                        builder: (context, seenSnapshot) {
+                          final seenCount = seenSnapshot.data ?? 0;
+
+                          return StreamBuilder<
+                            QuerySnapshot<Map<String, dynamic>>
+                          >(
+                            stream: currentUid == null
+                                ? null
+                                : FirebaseFirestore.instance
+                                      .collection('reservations')
+                                      .where('userId', isEqualTo: currentUid)
+                                      .snapshots(),
+                            builder: (context, reservationSnapshot) {
+                              return StreamBuilder<
+                                QuerySnapshot<Map<String, dynamic>>
+                              >(
+                                stream: currentUid == null
+                                    ? null
+                                    : FirebaseFirestore.instance
+                                          .collection('emprunts')
+                                          .where(
+                                            'userId',
+                                            isEqualTo: currentUid,
+                                          )
+                                          .snapshots(),
+                                builder: (context, loanSnapshot) {
+                                  final reservations =
+                                      reservationSnapshot.data?.docs ?? [];
+                                  final loans = loanSnapshot.data?.docs ?? [];
+
+                                  final totalCount =
+                                      _calculateStudentNotificationCount(
+                                        reservations: reservations,
+                                        loans: loans,
+                                      );
+
+                                  final badgeCount = totalCount > seenCount
+                                      ? totalCount - seenCount
+                                      : 0;
+
+                                  return GestureDetector(
+                                    onTap: () async {
+                                      final prefs =
+                                          await SharedPreferences.getInstance();
+                                      await prefs.setInt(
+                                        'student_seen_notifications',
+                                        totalCount,
+                                      );
+
+                                      if (!context.mounted) return;
+
+                                      Navigator.pushReplacement(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) =>
+                                              const StudentNotificationsScreen(),
+                                        ),
+                                      );
+                                    },
+                                    child: Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        Container(
+                                          width: 42,
+                                          height: 42,
+                                          decoration: BoxDecoration(
+                                            color: Colors.white.withOpacity(
+                                              0.16,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              14,
+                                            ),
+                                          ),
+                                          child: const Icon(
+                                            Icons.notifications_none_rounded,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        if (badgeCount > 0)
+                                          Positioned(
+                                            right: -2,
+                                            top: -2,
+                                            child: Container(
+                                              padding: const EdgeInsets.all(5),
+                                              decoration: BoxDecoration(
+                                                color: Colors.red,
+                                                borderRadius:
+                                                    BorderRadius.circular(999),
+                                              ),
+                                              constraints: const BoxConstraints(
+                                                minWidth: 20,
+                                                minHeight: 20,
+                                              ),
+                                              child: Text(
+                                                badgeCount > 9
+                                                    ? '9+'
+                                                    : '$badgeCount',
+                                                textAlign: TextAlign.center,
+                                                style: const TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.w700,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          );
+                        },
                       ),
-                      child: const Icon(
-                        Icons.person_rounded,
-                        color: Colors.white,
+                      const SizedBox(width: 8),
+                      GestureDetector(
+                        onTap: () => _showStudentProfileSheet(context),
+                        child: Container(
+                          width: 42,
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.16),
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          child: const Icon(
+                            Icons.person_rounded,
+                            color: Colors.white,
+                          ),
+                        ),
                       ),
-                    ),
+                    ],
                   ),
                 ],
               ),
@@ -340,22 +522,33 @@ class StudentDashboardScreen extends StatelessWidget {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                 ),
-                child: const TextField(
-                  readOnly: true,
-                  decoration: InputDecoration(
-                    hintText: 'Rechercher un document...',
-                    hintStyle: TextStyle(
-                      color: Color(0xFF9CA3AF),
-                      fontSize: 15,
-                    ),
-                    prefixIcon: Icon(
-                      Icons.search_rounded,
-                      color: Color(0xFF9CA3AF),
-                    ),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.symmetric(
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(16),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const SearchDocumentsScreen(),
+                      ),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 16,
+                    ),
+                    child: const Row(
+                      children: [
+                        Icon(Icons.search_rounded, color: Color(0xFF9CA3AF)),
+                        SizedBox(width: 12),
+                        Text(
+                          'Rechercher un document...',
+                          style: TextStyle(
+                            color: Color(0xFF9CA3AF),
+                            fontSize: 15,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),
@@ -610,9 +803,7 @@ class StudentDashboardScreen extends StatelessWidget {
                   const SizedBox(width: 12),
                   if (i + 1 < items.length)
                     Expanded(
-                      child: categoryCard(
-                        items[i + 1].$1,
-                        items[i + 1].$2),
+                      child: categoryCard(items[i + 1].$1, items[i + 1].$2),
                     )
                   else
                     const Expanded(child: SizedBox()),
@@ -698,20 +889,11 @@ class StudentDashboardScreen extends StatelessWidget {
               )
             else
               ...docs.map((doc) {
-                final data = doc.data();
-                final title = (data['title'] ?? '').toString();
-                final author = (data['author'] ?? '').toString();
-                final category = (data['category'] ?? '').toString();
-                final available = data['available'] == true;
+                final data = {...doc.data(), '_id': doc.id};
 
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 14),
-                  child: _recommendedCard(
-                    title: title,
-                    author: author,
-                    category: category,
-                    available: available,
-                  ),
+                  child: _recommendedCard(context: context, data: data),
                 );
               }),
           ],
@@ -721,114 +903,142 @@ class StudentDashboardScreen extends StatelessWidget {
   }
 
   Widget _recommendedCard({
-    required String title,
-    required String author,
-    required String category,
-    required bool available,
+    required BuildContext context,
+    required Map<String, dynamic> data,
   }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
+    final title = (data['title'] ?? '').toString();
+    final author = (data['author'] ?? '').toString();
+    final category = (data['category'] ?? '').toString();
+    final available = data['available'] == true;
+    final imagePath = (data['imagePath'] ?? '').toString();
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(22),
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DocumentDetailsScreen(documentData: data),
           ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 64,
-            height: 84,
-            decoration: BoxDecoration(
-              color: const Color(0xFFDDE8FF),
-              borderRadius: BorderRadius.circular(16),
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(22),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.06),
+              blurRadius: 12,
+              offset: const Offset(0, 4),
             ),
-            child: const Icon(
-              Icons.menu_book_rounded,
-              size: 30,
-              color: Color(0xFF3B82F6),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 64,
+              height: 84,
+              decoration: BoxDecoration(
+                color: const Color(0xFFDDE8FF),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: imagePath.isNotEmpty
+                  ? Image.asset(
+                      imagePath,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          Icons.menu_book_rounded,
+                          size: 30,
+                          color: Color(0xFF3B82F6),
+                        );
+                      },
+                    )
+                  : const Icon(
+                      Icons.menu_book_rounded,
+                      size: 30,
+                      color: Color(0xFF3B82F6),
+                    ),
             ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF111827),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF111827),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  author,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF4B5563),
+                  const SizedBox(height: 6),
+                  Text(
+                    author,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF4B5563),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFDCE9FF),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        category.isEmpty ? 'Document' : category,
-                        style: const TextStyle(
-                          color: Color(0xFF2563EB),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDCE9FF),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          category.isEmpty ? 'Document' : category,
+                          style: const TextStyle(
+                            color: Color(0xFF2563EB),
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 5,
-                      ),
-                      decoration: BoxDecoration(
-                        color: available
-                            ? const Color(0xFFDDF6E5)
-                            : const Color(0xFFFFE5E5),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        available ? 'Disponible' : 'Indisponible',
-                        style: TextStyle(
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 5,
+                        ),
+                        decoration: BoxDecoration(
                           color: available
-                              ? const Color(0xFF16A34A)
-                              : Colors.red,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                              ? const Color(0xFFDDF6E5)
+                              : const Color(0xFFFFE5E5),
+                          borderRadius: BorderRadius.circular(999),
+                        ),
+                        child: Text(
+                          available ? 'Disponible' : 'Indisponible',
+                          style: TextStyle(
+                            color: available
+                                ? const Color(0xFF16A34A)
+                                : Colors.red,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

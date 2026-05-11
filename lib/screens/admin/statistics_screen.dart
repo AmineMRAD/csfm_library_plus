@@ -47,7 +47,9 @@ class StatisticsScreen extends StatelessWidget {
                 final now = DateTime.now();
                 final previousMonth = DateTime(now.year, now.month - 1, 1);
 
-                final currentMonthLoans = _countLoansForMonth(loans, now.year, now.month);
+                final currentMonthLoans =
+                    _countLoansForMonth(loans, now.year, now.month);
+
                 final previousMonthLoans = _countLoansForMonth(
                   loans,
                   previousMonth.year,
@@ -55,6 +57,7 @@ class StatisticsScreen extends StatelessWidget {
                 );
 
                 final activeDelaysNow = _countActiveDelaysAtDate(loans, now);
+
                 final activeDelaysPreviousMonth = _countActiveDelaysAtDate(
                   loans,
                   DateTime(now.year, now.month, 0, 23, 59, 59),
@@ -70,7 +73,7 @@ class StatisticsScreen extends StatelessWidget {
                   previous: activeDelaysPreviousMonth,
                 );
 
-                final topDocuments = _buildTopDocuments(documents);
+                final topDocuments = _buildTopDocumentsFromLoans(loans);
                 final categoryStats = _buildCategoryStats(documents);
                 final monthlyEvolution = _buildMonthlyEvolution(loans);
 
@@ -301,7 +304,7 @@ class StatisticsScreen extends StatelessWidget {
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 8),
               child: Text(
-                'No borrowing data yet.',
+                'Aucune donnée d’emprunt pour le moment.',
                 style: TextStyle(
                   color: Color(0xFF6B7280),
                   fontSize: 14,
@@ -398,7 +401,9 @@ class StatisticsScreen extends StatelessWidget {
                         value: progress,
                         minHeight: 6,
                         backgroundColor: const Color(0xFFE5E7EB),
-                        valueColor: const AlwaysStoppedAnimation(Color(0xFF2563EB)),
+                        valueColor: const AlwaysStoppedAnimation(
+                          Color(0xFF2563EB),
+                        ),
                       ),
                     ),
                   ),
@@ -630,7 +635,11 @@ class StatisticsScreen extends StatelessWidget {
     );
   }
 
-  int _countLoansForMonth(List<Map<String, dynamic>> loans, int year, int month) {
+  int _countLoansForMonth(
+    List<Map<String, dynamic>> loans,
+    int year,
+    int month,
+  ) {
     return loans.where((loan) {
       final date = _extractDateFromMap(
         loan,
@@ -642,7 +651,10 @@ class StatisticsScreen extends StatelessWidget {
     }).length;
   }
 
-  int _countActiveDelaysAtDate(List<Map<String, dynamic>> loans, DateTime referenceDate) {
+  int _countActiveDelaysAtDate(
+    List<Map<String, dynamic>> loans,
+    DateTime referenceDate,
+  ) {
     return loans.where((loan) {
       final dueDate = _extractDateFromMap(
         loan,
@@ -697,43 +709,44 @@ class StatisticsScreen extends StatelessWidget {
     );
   }
 
-  List<_TopDocumentStat> _buildTopDocuments(List<Map<String, dynamic>> documents) {
-    if (documents.isEmpty) return [];
+  List<_TopDocumentStat> _buildTopDocumentsFromLoans(
+    List<Map<String, dynamic>> loans,
+  ) {
+    if (loans.isEmpty) return [];
 
-    final items = documents.map((doc) {
-      final title = (doc['title'] ?? 'Untitled').toString();
-      final borrowCount = _extractBorrowCount(doc);
+    final Map<String, int> borrowCounts = {};
 
-      return _TopDocumentStat(
-        title: title,
-        borrowCount: borrowCount,
-        progress: 0,
-        changeLabel: borrowCount > 0 ? '+${math.min(99, borrowCount * 3)}%' : '0%',
-        changeColor: borrowCount > 0 ? const Color(0xFF16A34A) : const Color(0xFF6B7280),
-      );
-    }).toList();
+    for (final loan in loans) {
+      final title = (loan['documentTitle'] ?? 'Document').toString();
 
-    items.sort((a, b) => b.borrowCount.compareTo(a.borrowCount));
+      if (title.trim().isEmpty) continue;
 
-    final top = items.take(5).toList();
-    final maxValue = top.isEmpty ? 0 : top.first.borrowCount;
-
-    if (maxValue <= 0) {
-      return [];
+      borrowCounts[title] = (borrowCounts[title] ?? 0) + 1;
     }
 
-    return top.map((item) {
+    final sortedEntries = borrowCounts.entries.toList()
+      ..sort((a, b) => b.value.compareTo(a.value));
+
+    final topEntries = sortedEntries.take(5).toList();
+
+    if (topEntries.isEmpty) return [];
+
+    final maxValue = topEntries.first.value;
+
+    return topEntries.map((entry) {
       return _TopDocumentStat(
-        title: item.title,
-        borrowCount: item.borrowCount,
-        progress: item.borrowCount / maxValue,
-        changeLabel: item.changeLabel,
-        changeColor: item.changeColor,
+        title: entry.key,
+        borrowCount: entry.value,
+        progress: entry.value / maxValue,
+        changeLabel: '${entry.value} emprunt(s)',
+        changeColor: const Color(0xFF16A34A),
       );
     }).toList();
   }
 
-  List<_CategoryStat> _buildCategoryStats(List<Map<String, dynamic>> documents) {
+  List<_CategoryStat> _buildCategoryStats(
+    List<Map<String, dynamic>> documents,
+  ) {
     if (documents.isEmpty) return [];
 
     final Map<String, int> categoryCounts = {};
@@ -772,7 +785,9 @@ class StatisticsScreen extends StatelessWidget {
     }).toList();
   }
 
-  List<_MonthlyStat> _buildMonthlyEvolution(List<Map<String, dynamic>> loans) {
+  List<_MonthlyStat> _buildMonthlyEvolution(
+    List<Map<String, dynamic>> loans,
+  ) {
     final now = DateTime.now();
     final months = List.generate(6, (index) {
       final date = DateTime(now.year, now.month - (5 - index), 1);
@@ -813,25 +828,10 @@ class StatisticsScreen extends StatelessWidget {
     }).toList();
   }
 
-  int _extractBorrowCount(Map<String, dynamic> data) {
-    const possibleKeys = [
-      'borrowCount',
-      'loanCount',
-      'empruntsCount',
-      'timesBorrowed',
-      'borrowedCount',
-    ];
-
-    for (final key in possibleKeys) {
-      final value = data[key];
-      if (value is int) return value;
-      if (value is String) return int.tryParse(value) ?? 0;
-    }
-
-    return 0;
-  }
-
-  bool _wasLoanReturnedBeforeOrAt(Map<String, dynamic> loan, DateTime referenceDate) {
+  bool _wasLoanReturnedBeforeOrAt(
+    Map<String, dynamic> loan,
+    DateTime referenceDate,
+  ) {
     final status = (loan['status'] ?? '').toString().toLowerCase();
 
     if (status == 'returned' ||
