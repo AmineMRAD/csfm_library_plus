@@ -23,9 +23,7 @@ class LoanListScreen extends StatelessWidget {
                 stream: empruntService.getEmprunts(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: CircularProgressIndicator(),
-                    );
+                    return const Center(child: CircularProgressIndicator());
                   }
 
                   final emprunts = snapshot.data ?? [];
@@ -89,10 +87,7 @@ class LoanListScreen extends StatelessWidget {
               children: [
                 Icon(Icons.arrow_back, color: Colors.white, size: 20),
                 SizedBox(width: 6),
-                Text(
-                  "Retour",
-                  style: TextStyle(color: Colors.white),
-                ),
+                Text("Retour", style: TextStyle(color: Colors.white)),
               ],
             ),
           ),
@@ -108,10 +103,7 @@ class LoanListScreen extends StatelessWidget {
           const SizedBox(height: 4),
           const Text(
             "Suivez les emprunts actifs",
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 14,
-            ),
+            style: TextStyle(color: Colors.white70, fontSize: 14),
           ),
         ],
       ),
@@ -119,23 +111,35 @@ class LoanListScreen extends StatelessWidget {
   }
 
   Widget _buildAddButton(BuildContext context) {
-    return SizedBox(
+    return Container(
       width: double.infinity,
-      height: 52,
+      height: 56,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF2563EB).withOpacity(0.22),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
       child: ElevatedButton.icon(
         onPressed: () => _showAddLoanDialog(context),
-        icon: const Icon(Icons.add, color: Colors.white),
+        icon: const Icon(Icons.add_circle_outline_rounded, color: Colors.white),
         label: const Text(
           "Ajouter un emprunt",
           style: TextStyle(
-            fontWeight: FontWeight.bold,
+            fontSize: 16,
+            fontWeight: FontWeight.w800,
             color: Colors.white,
           ),
         ),
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF2563EB),
+          elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(18),
           ),
         ),
       ),
@@ -152,11 +156,13 @@ class LoanListScreen extends StatelessWidget {
     final isLate =
         !emprunt.returned && returnDate != null && returnDate.isBefore(now);
 
-    final statusText =
-        emprunt.returned ? "Retourné" : (isLate ? "En retard" : "En cours");
+    final statusText = emprunt.returned
+        ? "Retourné"
+        : (isLate ? "En retard" : "En cours");
 
-    final statusColor =
-        emprunt.returned ? Colors.green : (isLate ? Colors.red : Colors.green);
+    final statusColor = emprunt.returned
+        ? Colors.green
+        : (isLate ? Colors.red : Colors.green);
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -164,10 +170,7 @@ class LoanListScreen extends StatelessWidget {
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 12,
-          ),
+          BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 12),
         ],
       ),
       child: Column(
@@ -206,9 +209,7 @@ class LoanListScreen extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             emprunt.documentTitle,
-            style: TextStyle(
-              color: Colors.grey.shade700,
-            ),
+            style: TextStyle(color: Colors.grey.shade700),
           ),
           const SizedBox(height: 12),
           Row(
@@ -217,10 +218,7 @@ class LoanListScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "Emprunté le :",
-                      style: TextStyle(fontSize: 12),
-                    ),
+                    const Text("Emprunté le :", style: TextStyle(fontSize: 12)),
                     const SizedBox(height: 4),
                     Text(
                       emprunt.borrowDate,
@@ -270,7 +268,7 @@ class LoanListScreen extends StatelessWidget {
                           );
                         },
                   icon: const Icon(Icons.check_circle_outline, size: 18),
-                  label: const Text("Marquer comme retourné"),
+                  label: const Text("retourné"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.green.shade50,
                     foregroundColor: Colors.green,
@@ -369,16 +367,53 @@ class LoanListScreen extends StatelessWidget {
     String? selectedUserName;
     String? selectedDocumentId;
     String? selectedDocumentTitle;
-    final returnDateController = TextEditingController();
+    DateTime? selectedReturnDate;
+
+    String formatDate(DateTime date) {
+      final month = date.month.toString().padLeft(2, '0');
+      final day = date.day.toString().padLeft(2, '0');
+      return '${date.year}-$month-$day';
+    }
 
     await showDialog(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: const Text("Nouvel emprunt"),
-          content: StatefulBuilder(
-            builder: (context, setStateDialog) {
-              return SingleChildScrollView(
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
+              titlePadding: EdgeInsets.zero,
+              contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 8),
+              actionsPadding: const EdgeInsets.fromLTRB(20, 8, 20, 18),
+              title: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(18),
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Color(0xFF2563EB), Color(0xFF1E40AF)],
+                  ),
+                  borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.library_books_rounded, color: Colors.white),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        "Nouvel emprunt",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -392,11 +427,20 @@ class LoanListScreen extends StatelessWidget {
                         return DropdownButtonFormField<String>(
                           value: selectedUserId,
                           isExpanded: true,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Utilisateur',
+                            prefixIcon: const Icon(
+                              Icons.person_outline_rounded,
+                            ),
+                            filled: true,
+                            fillColor: const Color(0xFFF8FAFC),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
                           ),
                           items: users.map((doc) {
                             final data = doc.data() as Map<String, dynamic>;
+
                             return DropdownMenuItem<String>(
                               value: data['uid'],
                               child: Text(data['name'] ?? ''),
@@ -425,11 +469,18 @@ class LoanListScreen extends StatelessWidget {
                         return DropdownButtonFormField<String>(
                           value: selectedDocumentId,
                           isExpanded: true,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Document',
+                            prefixIcon: const Icon(Icons.menu_book_outlined),
+                            filled: true,
+                            fillColor: const Color(0xFFF8FAFC),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
                           ),
                           items: documents.map((doc) {
                             final data = doc.data() as Map<String, dynamic>;
+
                             return DropdownMenuItem<String>(
                               value: data['id'],
                               child: Text(data['title'] ?? ''),
@@ -447,63 +498,149 @@ class LoanListScreen extends StatelessWidget {
                       },
                     ),
                     const SizedBox(height: 16),
-                    TextField(
-                      controller: returnDateController,
-                      decoration: const InputDecoration(
-                        labelText: 'Date de retour prévue',
-                        hintText: 'Ex: 2026-04-20',
+                    InkWell(
+                      borderRadius: BorderRadius.circular(16),
+                      onTap: () async {
+                        final now = DateTime.now();
+
+                        final pickedDate = await showDatePicker(
+                          context: context,
+                          initialDate: now.add(const Duration(days: 14)),
+                          firstDate: now,
+                          lastDate: DateTime(now.year + 2),
+                        );
+
+                        if (pickedDate != null) {
+                          setStateDialog(() {
+                            selectedReturnDate = pickedDate;
+                          });
+                        }
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 16,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE5E7EB)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(
+                              Icons.calendar_today_outlined,
+                              color: Color(0xFF2563EB),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                selectedReturnDate == null
+                                    ? 'Choisir la date de retour prévue'
+                                    : formatDate(selectedReturnDate!),
+                                style: TextStyle(
+                                  color: selectedReturnDate == null
+                                      ? const Color(0xFF6B7280)
+                                      : const Color(0xFF111827),
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ],
                 ),
-              );
-            },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Annuler"),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                if (selectedUserId == null ||
-                    selectedDocumentId == null ||
-                    returnDateController.text.trim().isEmpty) {
-                  return;
-                }
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("Annuler"),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    if (selectedUserId == null ||
+                        selectedDocumentId == null ||
+                        selectedReturnDate == null) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Veuillez remplir tous les champs'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                      return;
+                    }
 
-                final emprunt = EmpruntModel(
-                  id: DateTime.now().millisecondsSinceEpoch.toString(),
-                  userId: selectedUserId!,
-                  userName: selectedUserName ?? 'Utilisateur',
-                  documentId: selectedDocumentId!,
-                  documentTitle: selectedDocumentTitle ?? 'Document',
-                  borrowDate: DateTime.now().toString().substring(0, 10),
-                  returnDate: returnDateController.text.trim(),
-                  returned: false,
-                );
+                    final today = DateTime.now();
+                    final todayOnly = DateTime(
+                      today.year,
+                      today.month,
+                      today.day,
+                    );
+                    final returnOnly = DateTime(
+                      selectedReturnDate!.year,
+                      selectedReturnDate!.month,
+                      selectedReturnDate!.day,
+                    );
 
-                await empruntService.addEmprunt(emprunt);
+                    if (returnOnly.isBefore(todayOnly)) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'La date de retour ne peut pas être dans le passé',
+                          ),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      return;
+                    }
 
-                if (!context.mounted) return;
-                Navigator.pop(context);
+                    final emprunt = EmpruntModel(
+                      id: DateTime.now().millisecondsSinceEpoch.toString(),
+                      userId: selectedUserId!,
+                      userName: selectedUserName ?? 'Utilisateur',
+                      documentId: selectedDocumentId!,
+                      documentTitle: selectedDocumentTitle ?? 'Document',
+                      borrowDate: formatDate(DateTime.now()),
+                      returnDate: formatDate(selectedReturnDate!),
+                      returned: false,
+                    );
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Emprunt ajouté avec succès'),
-                    backgroundColor: Colors.blue,
+                    await empruntService.addEmprunt(emprunt);
+
+                    if (!context.mounted) return;
+                    Navigator.pop(context);
+
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Emprunt ajouté avec succès'),
+                        backgroundColor: Colors.blue,
+                      ),
+                    );
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
                   ),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF2563EB),
-              ),
-              child: const Text(
-                "Ajouter",
-                style: TextStyle(color: Colors.white),
-              ),
-            ),
-          ],
+                  child: const Text(
+                    "Ajouter",
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ],
+            );
+          },
         );
       },
     );

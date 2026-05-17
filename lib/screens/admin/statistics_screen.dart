@@ -14,14 +14,18 @@ class StatisticsScreen extends StatelessWidget {
       backgroundColor: const Color(0xFFEAF2FB),
       body: SafeArea(
         child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance.collection('documents').snapshots(),
+          stream: FirebaseFirestore.instance
+              .collection('documents')
+              .snapshots(),
           builder: (context, documentsSnapshot) {
             if (documentsSnapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
 
             return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-              stream: FirebaseFirestore.instance.collection('emprunts').snapshots(),
+              stream: FirebaseFirestore.instance
+                  .collection('emprunts')
+                  .snapshots(),
               builder: (context, loansSnapshot) {
                 if (loansSnapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -31,24 +35,21 @@ class StatisticsScreen extends StatelessWidget {
                 final loanDocs = loansSnapshot.data?.docs ?? [];
 
                 final documents = documentDocs.map((doc) {
-                  return {
-                    ...doc.data(),
-                    '_id': doc.id,
-                  };
+                  return {...doc.data(), '_id': doc.id};
                 }).toList();
 
                 final loans = loanDocs.map((doc) {
-                  return {
-                    ...doc.data(),
-                    '_id': doc.id,
-                  };
+                  return {...doc.data(), '_id': doc.id};
                 }).toList();
 
                 final now = DateTime.now();
                 final previousMonth = DateTime(now.year, now.month - 1, 1);
 
-                final currentMonthLoans =
-                    _countLoansForMonth(loans, now.year, now.month);
+                final currentMonthLoans = _countLoansForMonth(
+                  loans,
+                  now.year,
+                  now.month,
+                );
 
                 final previousMonthLoans = _countLoansForMonth(
                   loans,
@@ -80,9 +81,7 @@ class StatisticsScreen extends StatelessWidget {
                 return CustomScrollView(
                   physics: const BouncingScrollPhysics(),
                   slivers: [
-                    SliverToBoxAdapter(
-                      child: _buildHeader(context),
-                    ),
+                    SliverToBoxAdapter(child: _buildHeader(context)),
                     SliverToBoxAdapter(
                       child: Padding(
                         padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
@@ -305,10 +304,7 @@ class StatisticsScreen extends StatelessWidget {
               padding: EdgeInsets.symmetric(vertical: 8),
               child: Text(
                 'Aucune donnée d’emprunt pour le moment.',
-                style: TextStyle(
-                  color: Color(0xFF6B7280),
-                  fontSize: 14,
-                ),
+                style: TextStyle(color: Color(0xFF6B7280), fontSize: 14),
               ),
             )
           else
@@ -460,10 +456,7 @@ class StatisticsScreen extends StatelessWidget {
           if (categories.isEmpty)
             const Text(
               'No categories found.',
-              style: TextStyle(
-                color: Color(0xFF6B7280),
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Color(0xFF6B7280), fontSize: 14),
             )
           else
             ...categories.asMap().entries.map((entry) {
@@ -567,10 +560,7 @@ class StatisticsScreen extends StatelessWidget {
               child: const Center(
                 child: Text(
                   'No monthly loan data yet.',
-                  style: TextStyle(
-                    color: Color(0xFF6B7280),
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(color: Color(0xFF6B7280), fontSize: 14),
                 ),
               ),
             )
@@ -656,22 +646,36 @@ class StatisticsScreen extends StatelessWidget {
     DateTime referenceDate,
   ) {
     return loans.where((loan) {
-      final dueDate = _extractDateFromMap(
+      final returned = loan['returned'] == true;
+
+      if (returned) return false;
+
+      final returnDate = _extractDateFromMap(
         loan,
-        preferredKeys: const ['dueDate', 'returnDeadline', 'expectedReturnDate'],
+        preferredKeys: const [
+          'returnDate',
+          'dueDate',
+          'returnDeadline',
+          'expectedReturnDate',
+        ],
       );
 
-      if (dueDate == null) return false;
-      if (dueDate.isAfter(referenceDate)) return false;
+      if (returnDate == null) return false;
 
-      return !_wasLoanReturnedBeforeOrAt(loan, referenceDate);
+      final returnDay = DateTime(
+        returnDate.year,
+        returnDate.month,
+        returnDate.day,
+        23,
+        59,
+        59,
+      );
+
+      return returnDay.isBefore(referenceDate);
     }).length;
   }
 
-  _DeltaStat _buildDelta({
-    required int current,
-    required int previous,
-  }) {
+  _DeltaStat _buildDelta({required int current, required int previous}) {
     if (previous == 0 && current == 0) {
       return const _DeltaStat(
         label: '0% vs mois dernier',
@@ -697,10 +701,7 @@ class StatisticsScreen extends StatelessWidget {
     }
 
     if (percent < 0) {
-      return _DeltaStat(
-        label: '$percent% vs mois dernier',
-        color: Colors.red,
-      );
+      return _DeltaStat(label: '$percent% vs mois dernier', color: Colors.red);
     }
 
     return const _DeltaStat(
@@ -785,18 +786,14 @@ class StatisticsScreen extends StatelessWidget {
     }).toList();
   }
 
-  List<_MonthlyStat> _buildMonthlyEvolution(
-    List<Map<String, dynamic>> loans,
-  ) {
+  List<_MonthlyStat> _buildMonthlyEvolution(List<Map<String, dynamic>> loans) {
     final now = DateTime.now();
     final months = List.generate(6, (index) {
       final date = DateTime(now.year, now.month - (5 - index), 1);
       return date;
     });
 
-    final counts = <DateTime, int>{
-      for (final month in months) month: 0,
-    };
+    final counts = <DateTime, int>{for (final month in months) month: 0};
 
     for (final loan in loans) {
       final date = _extractDateFromMap(
@@ -893,10 +890,7 @@ class _DeltaStat {
   final String label;
   final Color color;
 
-  const _DeltaStat({
-    required this.label,
-    required this.color,
-  });
+  const _DeltaStat({required this.label, required this.color});
 }
 
 class _TopDocumentStat {

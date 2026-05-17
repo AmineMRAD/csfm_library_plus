@@ -39,9 +39,7 @@ class AdminScreen extends StatelessWidget {
         return Container(
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(24),
-            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: SafeArea(
             top: false,
@@ -296,7 +294,9 @@ class AdminScreen extends StatelessWidget {
           title: "Documents",
           color: Colors.blue,
           icon: Icons.menu_book,
-          stream: FirebaseFirestore.instance.collection('documents').snapshots(),
+          stream: FirebaseFirestore.instance
+              .collection('documents')
+              .snapshots(),
         ),
         _liveStatCard(
           title: "Emprunts",
@@ -308,7 +308,9 @@ class AdminScreen extends StatelessWidget {
           title: "Réservations",
           color: Colors.orange,
           icon: Icons.calendar_today,
-          stream: FirebaseFirestore.instance.collection('reservations').snapshots(),
+          stream: FirebaseFirestore.instance
+              .collection('reservations')
+              .snapshots(),
         ),
         _liveStatCard(
           title: "Utilisateurs",
@@ -453,10 +455,13 @@ class AdminScreen extends StatelessWidget {
       stream: FirebaseFirestore.instance.collection('emprunts').snapshots(),
       builder: (context, loanSnapshot) {
         return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: FirebaseFirestore.instance.collection('reservations').snapshots(),
+          stream: FirebaseFirestore.instance
+              .collection('reservations')
+              .snapshots(),
           builder: (context, reservationSnapshot) {
             if (loanSnapshot.connectionState == ConnectionState.waiting ||
-                reservationSnapshot.connectionState == ConnectionState.waiting) {
+                reservationSnapshot.connectionState ==
+                    ConnectionState.waiting) {
               return Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
@@ -473,19 +478,13 @@ class AdminScreen extends StatelessWidget {
             }
 
             final loans = (loanSnapshot.data?.docs ?? []).map((doc) {
-              return {
-                ...doc.data(),
-                '_type': 'loan',
-                '_id': doc.id,
-              };
+              return {...doc.data(), '_type': 'loan', '_id': doc.id};
             }).toList();
 
-            final reservations = (reservationSnapshot.data?.docs ?? []).map((doc) {
-              return {
-                ...doc.data(),
-                '_type': 'reservation',
-                '_id': doc.id,
-              };
+            final reservations = (reservationSnapshot.data?.docs ?? []).map((
+              doc,
+            ) {
+              return {...doc.data(), '_type': 'reservation', '_id': doc.id};
             }).toList();
 
             final allActivities = [...loans, ...reservations];
@@ -496,7 +495,18 @@ class AdminScreen extends StatelessWidget {
               return dateB.compareTo(dateA);
             });
 
-            final recent = allActivities.take(5).toList();
+            final now = DateTime.now();
+
+            final recent = allActivities
+                .where((activity) {
+                  final activityDate = _extractDate(activity);
+
+                  final difference = now.difference(activityDate);
+
+                  return difference.inHours < 24;
+                })
+                .take(5)
+                .toList();
 
             return Container(
               padding: const EdgeInsets.all(16),
@@ -509,10 +519,7 @@ class AdminScreen extends StatelessWidget {
                 children: [
                   const Text(
                     "Activité récente",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                    ),
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                   ),
                   const SizedBox(height: 12),
                   if (recent.isEmpty)
@@ -520,10 +527,7 @@ class AdminScreen extends StatelessWidget {
                       padding: EdgeInsets.symmetric(vertical: 8),
                       child: Text(
                         "Aucune activité récente",
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.black54,
-                        ),
+                        style: TextStyle(fontSize: 13, color: Colors.black54),
                       ),
                     )
                   else
@@ -579,10 +583,7 @@ class AdminScreen extends StatelessWidget {
             backgroundColor: color.withOpacity(0.18),
             child: Text(
               letter,
-              style: TextStyle(
-                color: color,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(color: color, fontWeight: FontWeight.w600),
             ),
           ),
           const SizedBox(width: 10),
@@ -594,19 +595,13 @@ class AdminScreen extends StatelessWidget {
                   title,
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                Text(
-                  userName,
-                  style: const TextStyle(fontSize: 12),
-                ),
+                Text(userName, style: const TextStyle(fontSize: 12)),
               ],
             ),
           ),
           Text(
             _timeAgo(date),
-            style: const TextStyle(
-              fontSize: 11,
-              color: Colors.black54,
-            ),
+            style: const TextStyle(fontSize: 11, color: Colors.black54),
           ),
         ],
       ),
