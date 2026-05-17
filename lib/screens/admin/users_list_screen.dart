@@ -1164,7 +1164,7 @@ class _EditUserBottomSheetState extends State<_EditUserBottomSheet> {
     final roleRaw = (widget.user['role'] ?? '').toString();
     _selectedRole = _mapRole(roleRaw);
   }
-
+// verification users Roles
   UserRole _mapRole(String raw) {
     switch (raw) {
       case 'admin':
